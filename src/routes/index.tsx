@@ -99,12 +99,12 @@ function Stone({ result }: { result: DoubleRow | null }) {
       />
       <text
         x="12"
-        y="12"
+        y="12.5"
         textAnchor="middle"
         dominantBaseline="central"
         fontFamily="ui-sans-serif, system-ui, sans-serif"
         fontWeight="800"
-        fontSize="9"
+        fontSize="11"
         fill={textColor}
       >
         {result.roll}
@@ -341,14 +341,17 @@ function Index() {
         {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
         {(() => {
           // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
-          const STONE_W = 52;
-          const STONE_GAP = 5;
-          const PAD = 6;
+          const STONE_W = 28;
+          const STONE_GAP = 3;
+          const PAD = 4;
           const globalMax = Math.max(
             1,
             ...minuteRows.flatMap((row) => row.map((c) => c.stones.length)),
           );
-          const colW = PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP;
+          const colW = Math.max(
+            44,
+            PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP,
+          );
           const gridTemplate = `repeat(10, ${colW}px)`;
           return (
             <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
@@ -383,7 +386,7 @@ function Index() {
                             ? "border-slate-800/80 bg-slate-950/60"
                             : "border-dashed border-slate-800/40 bg-slate-950/20"
                         }`}
-                        style={{ width: colW, padding: PAD, minHeight: STONE_W + 18 }}
+                        style={{ width: colW, padding: PAD, minHeight: 48 }}
                       >
                         <div
                           className="flex flex-row items-center justify-center"
