@@ -55,7 +55,7 @@ function stoneTextClass(color: number) {
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-slate-700/40 text-[10px] text-slate-600/60">
+      <div className="flex h-[22px] w-[22px] items-center justify-center rounded-md border border-dashed border-slate-700/40 text-[9px] text-slate-600/60">
         ·
       </div>
     );
@@ -63,16 +63,16 @@ function Stone({ result }: { result: DoubleRow | null }) {
   return (
     <div
       title={`${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`}
-      className="relative h-8 w-8"
+      className="relative h-[22px] w-[22px]"
     >
       <img
         src={stoneIcon(result.color)}
         alt={`pedra ${result.roll}`}
-        className="h-8 w-8 rounded-lg object-cover"
+        className="h-[22px] w-[22px] rounded-md object-cover"
         draggable={false}
       />
       <span
-        className={`absolute inset-0 flex items-center justify-center text-xs font-extrabold ${stoneTextClass(result.color)}`}
+        className={`absolute inset-0 flex items-center justify-center text-[11px] font-extrabold leading-none ${stoneTextClass(result.color)}`}
       >
         {result.roll}
       </span>
@@ -302,15 +302,15 @@ function Index() {
         </div>
 
         {/* Grid */}
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-2">
+        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-1.5">
           <div className="min-w-[640px]">
             {/* Column header */}
-            <div className="grid grid-cols-[56px_repeat(10,minmax(0,1fr))] gap-1 pb-2">
+            <div className="grid grid-cols-[56px_repeat(10,60px)] gap-[3px] pb-[3px]">
               <div />
               {COLS.map((c) => (
                 <div
                   key={c}
-                  className="rounded-md bg-slate-800/60 py-1 text-center text-xs font-bold text-slate-200"
+                  className="rounded bg-slate-800/60 py-0.5 text-center text-[14px] font-bold text-slate-200"
                 >
                   {String(c).padStart(2, "0")}
                 </div>
@@ -324,22 +324,22 @@ function Index() {
               return (
                 <div
                   key={rIdx}
-                  className="mb-1 grid grid-cols-[56px_repeat(10,minmax(0,1fr))] gap-1"
+                  className="mb-[3px] grid grid-cols-[56px_repeat(10,60px)] gap-[3px]"
                 >
-                  <div className="flex items-center justify-center rounded-md bg-slate-800/60 px-1 text-[11px] font-semibold text-slate-300">
+                  <div className="flex items-center justify-center rounded bg-slate-800/60 px-1 text-[14px] font-semibold text-slate-300">
                     {String(startMin).padStart(2, "0")}–
                     {String(endMin).padStart(2, "0")}
                   </div>
                   {row.map((cell) => (
                     <div
                       key={cell.col}
-                      className="flex flex-col items-center justify-center gap-1 rounded-md border border-slate-800/80 bg-slate-950/60 p-1"
+                      className="flex flex-col items-center justify-center gap-[2px] rounded border border-slate-800/80 bg-slate-950/60 px-1 py-1"
                     >
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-[3px]">
                         <Stone result={cell.first} />
                         <Stone result={cell.second} />
                       </div>
-                      <div className="text-[9px] font-mono text-slate-500">
+                      <div className="text-[9px] font-mono leading-none text-slate-500">
                         {String(cell.minute).padStart(2, "0")}
                       </div>
                     </div>
