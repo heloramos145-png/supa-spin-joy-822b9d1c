@@ -348,7 +348,10 @@ function Index() {
             1,
             ...minuteRows.flatMap((row) => row.map((c) => c.stones.length)),
           );
-          const colW = PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP;
+          const colW = Math.max(
+            44,
+            PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP,
+          );
           const gridTemplate = `repeat(10, ${colW}px)`;
           return (
             <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
