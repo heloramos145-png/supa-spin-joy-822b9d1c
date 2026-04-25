@@ -1,67 +1,92 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { syncJonbetRoulette } from "@/utils/roulette.functions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Flame, Snowflake, Activity } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Análise Roleta Jonbet — Histórico e Estatísticas" },
+      { title: "Análise Double Jonbet — Histórico em grid" },
       {
         name: "description",
         content:
-          "Acompanhe em tempo real o histórico, números quentes e frios da roleta da Jonbet.",
+          "Histórico do Double da Jonbet em grid de minutos: colunas 0-9, linhas a cada 10 minutos.",
       },
     ],
   }),
 });
 
-type RouletteRow = {
+type DoubleRow = {
   id: number;
   game_id: string;
-  number: number;
-  color: "red" | "black" | "green";
+  roll: number;
+  color: number; // 0=white, 1=red(1-7), 2=black(8-14)
   created_at: string;
 };
 
 const POLL_MS = 5000;
 
-function colorClass(color: string) {
-  if (color === "red") return "bg-red-600 text-white";
-  if (color === "black") return "bg-zinc-900 text-white";
-  return "bg-emerald-600 text-white";
+// 6 row buckets: 0-9 min, 10-19, 20-29, 30-39, 40-49, 50-59
+const ROW_BUCKETS = [0, 10, 20, 30, 40, 50] as const;
+// Columns 0..9 = last digit of the minute
+const COLS = Array.from({ length: 10 }, (_, i) => i);
+
+// Each minute has 2 cells: half 0 (seconds 0-29) and half 1 (seconds 30-59)
+type Cell = { row: number; col: number; half: 0 | 1; result: DoubleRow | null };
+
+function colorBg(color: number) {
+  if (color === 0) return "bg-white text-zinc-900 border-zinc-300";
+  if (color === 1) return "bg-rose-500 text-white border-rose-700";
+  return "bg-zinc-900 text-white border-zinc-700";
+}
+
+function Stone({ result }: { result: DoubleRow | null }) {
+  if (!result) {
+    return (
+      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-slate-700/40 text-[10px] text-slate-600/60">
+        ·
+      </div>
+    );
+  }
+  return (
+    <div
+      title={`${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`}
+      className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold shadow-sm ${colorBg(result.color)}`}
+    >
+      {result.roll}
+    </div>
+  );
 }
 
 function Index() {
-  const [results, setResults] = useState<RouletteRow[]>([]);
+  const [results, setResults] = useState<DoubleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hourOffset, setHourOffset] = useState(0); // 0 = current hour
 
   async function fetchResults() {
     const { data, error } = await supabase
-      .from("roulette_results")
+      .from("double_results")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(500);
     if (error) {
       setError(error.message);
       return;
     }
     setError(null);
-    setResults((data ?? []) as RouletteRow[]);
+    setResults((data ?? []) as DoubleRow[]);
   }
 
   async function doSync() {
     setSyncing(true);
     try {
-      const res = await syncJonbetRoulette();
+      const res = await syncJonbetDouble();
       if (!res.ok) setError(res.error ?? "Falha ao sincronizar");
       setLastSync(new Date().toLocaleTimeString("pt-BR"));
       await fetchResults();
@@ -83,59 +108,120 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const stats = useMemo(() => {
-    const total = results.length;
-    const counts: Record<number, number> = {};
-    let red = 0,
-      black = 0,
-      green = 0;
-    let even = 0,
-      odd = 0;
-    let low = 0,
-      high = 0; // 1-18 / 19-36
+  // Determine the displayed hour
+  const displayedHour = useMemo(() => {
+    const d = new Date();
+    d.setMinutes(0, 0, 0);
+    d.setHours(d.getHours() + hourOffset);
+    return d;
+  }, [hourOffset, lastSync]);
+
+  // Build the 60-minute, 2-half grid filled with results that fall in the displayed hour
+  const grid = useMemo<Cell[][]>(() => {
+    const start = displayedHour.getTime();
+    const end = start + 60 * 60 * 1000;
+    const buckets = new Map<string, DoubleRow>();
     for (const r of results) {
-      counts[r.number] = (counts[r.number] ?? 0) + 1;
-      if (r.color === "red") red++;
-      else if (r.color === "black") black++;
-      else green++;
-      if (r.number !== 0) {
-        if (r.number % 2 === 0) even++;
-        else odd++;
-        if (r.number <= 18) low++;
-        else high++;
+      const t = new Date(r.created_at).getTime();
+      if (t < start || t >= end) continue;
+      const minute = Math.floor((t - start) / 60000); // 0..59
+      const half: 0 | 1 = ((t - start) % 60000) < 30000 ? 0 : 1;
+      const key = `${minute}-${half}`;
+      // Keep latest in case of duplicates
+      const existing = buckets.get(key);
+      if (!existing || new Date(existing.created_at).getTime() < t) {
+        buckets.set(key, r);
       }
     }
-    const sorted = Object.entries(counts)
-      .map(([n, c]) => ({ number: Number(n), count: c }))
-      .sort((a, b) => b.count - a.count);
-    const hot = sorted.slice(0, 5);
-    const allNumbers = Array.from({ length: 37 }, (_, i) => i);
-    const cold = allNumbers
-      .map((n) => ({ number: n, count: counts[n] ?? 0 }))
-      .sort((a, b) => a.count - b.count)
-      .slice(0, 5);
-    return { total, red, black, green, even, odd, low, high, hot, cold };
-  }, [results]);
+
+    return ROW_BUCKETS.map((rowStart) =>
+      COLS.map((col) => {
+        const minute = rowStart + col;
+        return {
+          row: rowStart,
+          col,
+          half: 0 as 0 | 1,
+          result: buckets.get(`${minute}-0`) ?? null,
+        };
+      }),
+    ).flatMap((row, idx) => {
+      // Each row is one row of 10 cells of 2 stones each
+      return [
+        row.map((c) => ({ ...c, half: 0 as 0 | 1, result: c.result })),
+        row.map((c) => ({
+          ...c,
+          half: 1 as 0 | 1,
+          result: buckets.get(`${ROW_BUCKETS[idx] + c.col}-1`) ?? null,
+        })),
+      ] as unknown as Cell[][];
+    });
+    // grid above produces array of pairs; we'll restructure below
+  }, [results, displayedHour]);
+
+  // Recombine grid into rows of cells where each cell has both halves
+  const rows = useMemo(() => {
+    return ROW_BUCKETS.map((rowStart, rIdx) => {
+      const half0 = grid[rIdx * 2];
+      const half1 = grid[rIdx * 2 + 1];
+      return COLS.map((col) => ({
+        rowStart,
+        col,
+        minute: rowStart + col,
+        first: half0?.[col]?.result ?? null,
+        second: half1?.[col]?.result ?? null,
+      }));
+    });
+  }, [grid]);
+
+  // Stats over all results in displayed hour
+  const stats = useMemo(() => {
+    const start = displayedHour.getTime();
+    const end = start + 60 * 60 * 1000;
+    let red = 0,
+      black = 0,
+      white = 0,
+      total = 0;
+    for (const r of results) {
+      const t = new Date(r.created_at).getTime();
+      if (t < start || t >= end) continue;
+      total++;
+      if (r.color === 0) white++;
+      else if (r.color === 1) red++;
+      else black++;
+    }
+    return { total, red, black, white };
+  }, [results, displayedHour]);
+
+  const hourLabel = displayedHour.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800/60 bg-slate-900/40">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Análise Roleta Jonbet
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+              Análise Double Jonbet
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Histórico em tempo real • atualiza a cada {POLL_MS / 1000}s
+            <p className="text-xs text-slate-400">
+              Grid em tempo real • atualiza a cada {POLL_MS / 1000}s
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {lastSync && (
-              <span className="text-xs text-muted-foreground">
-                Última sincronização: {lastSync}
-              </span>
+              <span className="text-xs text-slate-400">Sync: {lastSync}</span>
             )}
-            <Button onClick={doSync} disabled={syncing} size="sm">
+            <Button
+              onClick={doSync}
+              disabled={syncing}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-500"
+            >
               <RefreshCw
                 className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`}
               />
@@ -145,163 +231,115 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+      <main className="mx-auto max-w-7xl space-y-4 px-2 py-4 sm:px-4">
         {error && (
-          <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
             {error}
           </div>
         )}
 
-        {/* Stat cards */}
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                <Activity className="mr-1 inline h-4 w-4" /> Total
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                Vermelho / Preto
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">
-                <span className="text-red-500">{stats.red}</span>
-                <span className="mx-1 text-muted-foreground">/</span>
-                <span>{stats.black}</span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                Par / Ímpar
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">
-                {stats.even} / {stats.odd}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                1-18 / 19-36
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-semibold">
-                {stats.low} / {stats.high}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+        {/* Hour navigator */}
+        <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setHourOffset((h) => h - 1)}
+            className="text-slate-300"
+          >
+            ◀ Hora anterior
+          </Button>
+          <div className="font-mono font-semibold text-slate-200">
+            {hourLabel}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setHourOffset((h) => Math.min(0, h + 1))}
+            disabled={hourOffset >= 0}
+            className="text-slate-300"
+          >
+            Próxima hora ▶
+          </Button>
+        </div>
 
-        {/* Hot / Cold */}
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Flame className="h-4 w-4 text-orange-500" /> Quentes (mais frequentes)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {stats.hot.map((h) => (
+        {/* Stats strip */}
+        <div className="grid grid-cols-4 gap-2 text-center text-sm">
+          <div className="rounded-md border border-slate-800 bg-slate-900/50 py-2">
+            <div className="text-[11px] uppercase text-slate-400">Total</div>
+            <div className="font-bold">{stats.total}</div>
+          </div>
+          <div className="rounded-md border border-rose-700/40 bg-rose-500/10 py-2">
+            <div className="text-[11px] uppercase text-rose-300">Vermelho</div>
+            <div className="font-bold text-rose-200">{stats.red}</div>
+          </div>
+          <div className="rounded-md border border-zinc-700/60 bg-zinc-800/40 py-2">
+            <div className="text-[11px] uppercase text-zinc-300">Preto</div>
+            <div className="font-bold">{stats.black}</div>
+          </div>
+          <div className="rounded-md border border-slate-300/30 bg-white/5 py-2">
+            <div className="text-[11px] uppercase text-slate-300">Branco</div>
+            <div className="font-bold">{stats.white}</div>
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-2">
+          <div className="min-w-[640px]">
+            {/* Column header */}
+            <div className="grid grid-cols-[56px_repeat(10,minmax(0,1fr))] gap-1 pb-2">
+              <div />
+              {COLS.map((c) => (
                 <div
-                  key={h.number}
-                  className="flex items-center gap-2 rounded-md border border-border px-2 py-1"
+                  key={c}
+                  className="rounded-md bg-slate-800/60 py-1 text-center text-xs font-bold text-slate-200"
                 >
-                  <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${colorClass(getNumberColor(h.number))}`}
-                  >
-                    {h.number}
-                  </span>
-                  <span className="text-sm text-muted-foreground">×{h.count}</span>
+                  {String(c).padStart(2, "0")}
                 </div>
               ))}
-              {stats.hot.length === 0 && (
-                <p className="text-sm text-muted-foreground">Sem dados ainda.</p>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Snowflake className="h-4 w-4 text-sky-500" /> Frios (menos frequentes)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {stats.cold.map((c) => (
-                <div
-                  key={c.number}
-                  className="flex items-center gap-2 rounded-md border border-border px-2 py-1"
-                >
-                  <span
-                    className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${colorClass(getNumberColor(c.number))}`}
-                  >
-                    {c.number}
-                  </span>
-                  <span className="text-sm text-muted-foreground">×{c.count}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </section>
+            </div>
 
-        {/* History */}
-        <section>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Histórico recente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Carregando…</p>
-              ) : results.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum resultado ainda. Aguardando primeiro sync da API Jonbet…
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {results.map((r) => (
-                    <span
-                      key={r.id}
-                      title={new Date(r.created_at).toLocaleString("pt-BR")}
-                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-sm ${colorClass(r.color)}`}
+            {/* Rows */}
+            {rows.map((row, rIdx) => {
+              const startMin = ROW_BUCKETS[rIdx];
+              const endMin = (startMin + 10) % 60;
+              return (
+                <div
+                  key={rIdx}
+                  className="mb-1 grid grid-cols-[56px_repeat(10,minmax(0,1fr))] gap-1"
+                >
+                  <div className="flex items-center justify-center rounded-md bg-slate-800/60 px-1 text-[11px] font-semibold text-slate-300">
+                    {String(startMin).padStart(2, "0")}–
+                    {String(endMin).padStart(2, "0")}
+                  </div>
+                  {row.map((cell) => (
+                    <div
+                      key={cell.col}
+                      className="flex flex-col items-center justify-center gap-1 rounded-md border border-slate-800/80 bg-slate-950/60 p-1"
                     >
-                      {r.number}
-                    </span>
+                      <div className="flex items-center gap-1">
+                        <Stone result={cell.first} />
+                        <Stone result={cell.second} />
+                      </div>
+                      <div className="text-[9px] font-mono text-slate-500">
+                        {String(cell.minute).padStart(2, "0")}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              )}
-              {results.length > 0 && (
-                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">{results.length} jogadas</Badge>
-                  <span>
-                    Mais recente:{" "}
-                    {new Date(results[0].created_at).toLocaleString("pt-BR")}
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </section>
+              );
+            })}
+          </div>
+        </div>
+
+        {loading && (
+          <p className="text-center text-sm text-slate-400">Carregando…</p>
+        )}
+        {!loading && results.length === 0 && (
+          <p className="text-center text-sm text-slate-400">
+            Aguardando primeiros dados da API…
+          </p>
+        )}
       </main>
     </div>
   );
-}
-
-const RED_SET = new Set([
-  1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-]);
-function getNumberColor(n: number): "red" | "black" | "green" {
-  if (n === 0) return "green";
-  return RED_SET.has(n) ? "red" : "black";
 }
