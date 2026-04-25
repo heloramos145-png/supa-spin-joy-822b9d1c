@@ -341,8 +341,8 @@ function Index() {
         {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
         {(() => {
           // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
-          const STONE_W = 36;
-          const STONE_GAP = 4;
+          const STONE_W = 52;
+          const STONE_GAP = 5;
           const PAD = 6;
           const globalMax = Math.max(
             1,
