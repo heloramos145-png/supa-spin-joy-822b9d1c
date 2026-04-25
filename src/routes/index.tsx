@@ -99,12 +99,12 @@ function Stone({ result }: { result: DoubleRow | null }) {
       />
       <text
         x="12"
-        y="12"
+        y="12.5"
         textAnchor="middle"
         dominantBaseline="central"
         fontFamily="ui-sans-serif, system-ui, sans-serif"
         fontWeight="800"
-        fontSize="9"
+        fontSize="11"
         fill={textColor}
       >
         {result.roll}
