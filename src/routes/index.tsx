@@ -27,7 +27,7 @@ type DoubleRow = {
   created_at: string;
 };
 
-const POLL_MS = 5000;
+const POLL_MS = 3000;
 
 // 6 row buckets: top = 50–00 (newest), bottom = 00–10 (oldest within hour)
 const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
