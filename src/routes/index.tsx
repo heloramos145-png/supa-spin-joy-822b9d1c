@@ -239,22 +239,6 @@ function Index() {
     });
   }, [results]);
 
-  // Stats over the displayed Brasília hour
-  const stats = useMemo(() => {
-    let red = 0, black = 0, white = 0, total = 0;
-    for (const row of rows) {
-      for (const cell of row) {
-        for (const r of [cell.first, cell.second]) {
-          if (!r) continue;
-          total++;
-          if (r.color === 0) white++;
-          else if (r.color === 1) red++;
-          else black++;
-        }
-      }
-    }
-    return { total, red, black, white };
-  }, [rows]);
 
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
