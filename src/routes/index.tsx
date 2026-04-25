@@ -363,29 +363,36 @@ function Index() {
             ))}
           </div>
 
-          <div
-            className="grid gap-1"
-            style={{ gridTemplateColumns: "repeat(10, 56px)" }}
-          >
-            {minuteCells.map((cell) => (
-              <div
-                key={cell.minuteStartUtc}
-                className="flex flex-col items-center justify-center rounded border border-slate-800/80 bg-slate-950/60"
-                style={{ width: 56, height: 46 }}
-              >
-                <div className="flex items-center justify-center gap-[2px]">
-                  <Stone result={cell.first} />
-                  <Stone result={cell.second} />
-                </div>
+          {minuteRows.map((row, rIdx) => (
+            <div
+              key={rIdx}
+              className="grid gap-1 pb-1"
+              style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+            >
+              {row.map((cell) => (
                 <div
-                  className="leading-none text-slate-400 tabular-nums"
-                  style={{ fontSize: 10, marginTop: 2 }}
+                  key={cell.minuteStartUtc}
+                  className={`flex flex-col items-center justify-center rounded border ${
+                    cell.hasData
+                      ? "border-slate-800/80 bg-slate-950/60"
+                      : "border-dashed border-slate-800/40 bg-slate-950/20"
+                  }`}
+                  style={{ width: 56, height: 46 }}
                 >
-                  {cell.label}
+                  <div className="flex items-center justify-center gap-[2px]">
+                    <Stone result={cell.first} />
+                    <Stone result={cell.second} />
+                  </div>
+                  <div
+                    className="leading-none text-slate-400 tabular-nums"
+                    style={{ fontSize: 10, marginTop: 2 }}
+                  >
+                    {cell.label}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ))}
         </div>
 
         {loading && (
