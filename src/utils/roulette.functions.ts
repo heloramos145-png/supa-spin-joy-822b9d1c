@@ -74,21 +74,20 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
       return { ok: false, inserted: 0, error: error.message };
     }
 
-    // Trim to keep only the 1500 most recent rows
-    const KEEP = 1500;
-    const { data: cutoffRow } = await supabaseAdmin
-      .from("double_results")
-      .select("created_at")
-      .order("created_at", { ascending: false })
-      .range(KEEP - 1, KEEP - 1)
-      .maybeSingle();
+    // Manter apenas as pedras do dia atual em Brasília (UTC-3).
+    // Ao virar 00:00 em Brasília, tudo do dia anterior é apagado.
+    const now = new Date();
+    // Início do dia atual em Brasília = 03:00 UTC do mesmo dia civil em SP.
+    const brasiliaNowUtcMs = now.getTime() - 3 * 60 * 60 * 1000;
+    const b = new Date(brasiliaNowUtcMs);
+    const startOfDayBrasiliaUtc = new Date(
+      Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate(), 3, 0, 0),
+    );
 
-    if (cutoffRow?.created_at) {
-      await supabaseAdmin
-        .from("double_results")
-        .delete()
-        .lt("created_at", cutoffRow.created_at);
-    }
+    await supabaseAdmin
+      .from("double_results")
+      .delete()
+      .lt("created_at", startOfDayBrasiliaUtc.toISOString());
 
     return { ok: true, inserted: count ?? rows.length };
   },
