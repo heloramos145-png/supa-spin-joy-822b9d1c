@@ -297,68 +297,31 @@ function Index() {
           </div>
         </div>
 
-        {/* Grade do dia: uma sub-grade por hora de Brasília, mais recente em cima */}
-        <div className="space-y-3">
-          {hourSections.map((section) => (
-            <div
-              key={section.hourStartUtc}
-              className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2"
-            >
-              <div className="mb-1 flex items-center justify-between px-1">
-                <div className="text-[12px] font-bold text-emerald-400">
-                  {section.hourLabel}:00
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Hor. de Brasília
-                </div>
-              </div>
-
+        {/* Grade contínua: 10 colunas, mais recentes em cima, sem espaços vazios */}
+        <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
+          <div
+            className="grid gap-1"
+            style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+          >
+            {minuteCells.map((cell) => (
               <div
-                className="grid gap-1 pb-1"
-                style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+                key={cell.minuteStartUtc}
+                className="flex flex-col items-center justify-center rounded border border-slate-800/80 bg-slate-950/60"
+                style={{ width: 56, height: 46 }}
               >
-                {COLS.map((c) => (
-                  <div
-                    key={c}
-                    className="flex h-8 items-center justify-center rounded bg-slate-800/60 font-bold text-slate-200"
-                    style={{ width: 56, fontSize: 15 }}
-                  >
-                    {String(c).padStart(2, "0")}
-                  </div>
-                ))}
-              </div>
-
-              {section.rows.map((row, rIdx) => (
-                <div
-                  key={rIdx}
-                  className="grid gap-1 pb-1"
-                  style={{ gridTemplateColumns: "repeat(10, 56px)" }}
-                >
-                  {row.map((cell) => {
-                    const minuteStr = String(cell.minute).padStart(2, "0");
-                    return (
-                      <div
-                        key={cell.col}
-                        className="flex flex-col items-center justify-center rounded border border-slate-800/80 bg-slate-950/60"
-                        style={{ width: 56, height: 46 }}
-                      >
-                        <div className="flex items-center justify-center gap-[2px]">
-                          <Stone result={cell.first} />
-                          <Stone result={cell.second} />
-                        </div>
-                        <div
-                          className="leading-none text-slate-400 tabular-nums"
-                          style={{ fontSize: 10, marginTop: 2 }}
-                        >
-                          {section.hourLabel}:{minuteStr}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center justify-center gap-[2px]">
+                  <Stone result={cell.first} />
+                  <Stone result={cell.second} />
                 </div>
-              ))}
-            </div>
-          ))}
+                <div
+                  className="leading-none text-slate-400 tabular-nums"
+                  style={{ fontSize: 10, marginTop: 2 }}
+                >
+                  {cell.label}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {loading && (
