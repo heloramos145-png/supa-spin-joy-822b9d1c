@@ -194,16 +194,9 @@ function Index() {
   }, [now]);
 
   // Linhas alinhadas: cada linha = dezena de minutos (HH:M0..HH:M9 em Brasília),
-  // cada coluna 0..9 = dígito do minuto. Linhas sem nenhuma pedra são ocultadas.
+  // cada coluna 0..9 = dígito do minuto. Cada pedra é uma célula independente
+  // empilhada verticalmente dentro da sua coluna (ordem cronológica, recente em cima).
   const minuteRows = useMemo(() => {
-    type Cell = {
-      minuteStartUtc: number;
-      label: string; // HH:MM em Brasília
-      first: DoubleRow | null;
-      second: DoubleRow | null;
-      hasData: boolean;
-    };
-
     const fmtHM = new Intl.DateTimeFormat("pt-BR", {
       timeZone: "America/Sao_Paulo",
       hour: "2-digit",
@@ -211,8 +204,8 @@ function Index() {
       hour12: false,
     });
 
-    // Indexa pedras por (minuteStart, half)
-    const byMinute = new Map<number, { first: DoubleRow | null; second: DoubleRow | null }>();
+    // Indexa todas as pedras por minuto (lista, mais recente primeiro)
+    const byMinute = new Map<number, DoubleRow[]>();
     let minMinute = Infinity;
     let maxMinute = -Infinity;
     for (const r of results) {
@@ -220,50 +213,40 @@ function Index() {
       const minuteStartUtc = Math.floor(t / 60000) * 60000;
       if (minuteStartUtc < minMinute) minMinute = minuteStartUtc;
       if (minuteStartUtc > maxMinute) maxMinute = minuteStartUtc;
-      let b = byMinute.get(minuteStartUtc);
-      if (!b) {
-        b = { first: null, second: null };
-        byMinute.set(minuteStartUtc, b);
-      }
-      const half: "first" | "second" =
-        t - minuteStartUtc < 30000 ? "first" : "second";
-      const existing = b[half];
-      if (!existing || new Date(existing.created_at).getTime() < t) {
-        b[half] = r;
-      }
+      const list = byMinute.get(minuteStartUtc) ?? [];
+      list.push(r);
+      byMinute.set(minuteStartUtc, list);
+    }
+    // Ordena cada minuto por horário (recente em cima)
+    for (const list of byMinute.values()) {
+      list.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
     }
 
-    if (!isFinite(minMinute)) return [] as Cell[][];
+    if (!isFinite(minMinute)) return [] as MinuteCol[][];
 
-    // Calcula dígito do minuto em Brasília (UTC-3) — minutos não são afetados pelo offset de horas
-    const minuteDigit = (utcMs: number) => {
-      const d = new Date(utcMs);
-      return d.getUTCMinutes() % 10;
-    };
-    // Início da dezena (em ms UTC) que contém esse minuto
+    const minuteDigit = (utcMs: number) => new Date(utcMs).getUTCMinutes() % 10;
     const decadeStart = (utcMs: number) =>
       utcMs - minuteDigit(utcMs) * 60000;
 
     const firstDecade = decadeStart(minMinute);
     const lastDecade = decadeStart(maxMinute);
 
-    const rows: Cell[][] = [];
-    // Mais recente em cima
+    const rows: MinuteCol[][] = [];
     for (let dec = lastDecade; dec >= firstDecade; dec -= 10 * 60000) {
-      const row: Cell[] = [];
+      const row: MinuteCol[] = [];
       let any = false;
       for (let col = 0; col < 10; col++) {
         const minuteStartUtc = dec + col * 60000;
-        const bucket = byMinute.get(minuteStartUtc);
-        const cell: Cell = {
+        const stones = byMinute.get(minuteStartUtc) ?? [];
+        if (stones.length) any = true;
+        row.push({
           minuteStartUtc,
           label: fmtHM.format(new Date(minuteStartUtc)),
-          first: bucket?.first ?? null,
-          second: bucket?.second ?? null,
-          hasData: !!(bucket?.first || bucket?.second),
-        };
-        if (cell.hasData) any = true;
-        row.push(cell);
+          stones,
+        });
       }
       if (any) rows.push(row);
     }
