@@ -62,8 +62,8 @@ function Stone({ result }: { result: DoubleRow | null }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      width={22}
-      height={22}
+      width={24}
+      height={24}
       className="block"
       aria-label={`pedra ${result.roll}`}
     >
@@ -98,6 +98,12 @@ function Stone({ result }: { result: DoubleRow | null }) {
         fontWeight="800"
         fontSize="9"
         fill={textColor}
+      >
+        {result.roll}
+      </text>
+    </svg>
+  );
+}
       >
         {result.roll}
       </text>
