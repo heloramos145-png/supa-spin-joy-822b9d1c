@@ -49,14 +49,6 @@ type DoubleRow = {
 
 const POLL_MS = 5000;
 
-// Newest at the BOTTOM: row order reads top→bottom as 50–00, 40–50, ... 00–10
-// so as time advances within an hour, new stones fill upward (bottom→top)
-const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
-// Columns 0..9 = last digit of the minute
-const COLS = Array.from({ length: 10 }, (_, i) => i);
-
-// Each minute has 2 cells: half 0 (seconds 0-29) and half 1 (seconds 30-59)
-type Cell = { row: number; col: number; half: 0 | 1; result: DoubleRow | null };
 
 
 
