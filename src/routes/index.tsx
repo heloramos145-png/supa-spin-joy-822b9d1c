@@ -330,15 +330,24 @@ function Index() {
                 key={rIdx}
                 className="mb-[3px] grid grid-cols-10 gap-[3px]"
               >
-                {row.map((cell) => (
-                  <div
-                    key={cell.col}
-                    className="flex items-center justify-center gap-[3px] rounded border border-slate-800/80 bg-slate-950/60 p-1"
-                  >
-                    <Stone result={cell.first} />
-                    <Stone result={cell.second} />
-                  </div>
-                ))}
+                {row.map((cell) => {
+                  const mm = String(Math.floor(cell.minute / 10)).padStart(2, "0");
+                  const ss = String(cell.minute % 10).padStart(2, "0");
+                  return (
+                    <div
+                      key={cell.col}
+                      className="flex flex-col items-center justify-center gap-[2px] rounded border border-slate-800/80 bg-slate-950/60 p-1"
+                    >
+                      <div className="flex items-center justify-center gap-[3px]">
+                        <Stone result={cell.first} />
+                        <Stone result={cell.second} />
+                      </div>
+                      <div className="text-[9px] font-medium leading-none text-slate-400 tabular-nums">
+                        {brasiliaParts.hour}:{mm}{ss}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
