@@ -240,6 +240,15 @@ function Index() {
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
 
+  // "Girando em MM:SS" — countdown to next round (rounds happen ~ every minute on Jonbet Double)
+  const spinCountdown = useMemo(() => {
+    const sec = Number(brasiliaParts.second);
+    const remaining = 60 - sec;
+    const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+    const ss = String(remaining % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  }, [brasiliaParts.second]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800/60 bg-slate-900/40">
