@@ -182,43 +182,62 @@ function Index() {
     };
   }, [now]);
 
-  // Build the 6×10 grid for the CURRENT Brasília hour, each cell has 2 half-minute stones
-  const rows = useMemo(() => {
-    // Compute start of current Brasília hour as a UTC instant
-    const y = Number(brasiliaParts.year);
-    const mo = Number(brasiliaParts.month);
-    const d = Number(brasiliaParts.day);
-    const h = Number(brasiliaParts.hour);
-    // America/Sao_Paulo is UTC-3 year-round
-    const hourStartUtc = Date.UTC(y, mo - 1, d, h + 3, 0, 0);
-    const hourEndUtc = hourStartUtc + 60 * 60 * 1000;
+  // Agrupa pedras por hora de Brasília (UTC-3) — uma grade 6×10 por hora
+  const hourSections = useMemo(() => {
+    type Bucket = { first: DoubleRow | null; second: DoubleRow | null };
+    // Map<hourKey, Map<"minute-half", DoubleRow>>
+    // hourKey = epoch ms do início da hora em UTC para a hora de Brasília
+    const byHour = new Map<number, Map<string, DoubleRow>>();
 
-    const buckets = new Map<string, DoubleRow>();
     for (const r of results) {
       const t = new Date(r.created_at).getTime();
-      if (t < hourStartUtc || t >= hourEndUtc) continue;
-      const minute = Math.floor((t - hourStartUtc) / 60000); // 0..59
+      // Início da hora de Brasília (UTC-3) que contém esse instante
+      const localMs = t - 3 * 60 * 60 * 1000;
+      const hourStartLocal = Math.floor(localMs / (60 * 60 * 1000)) * (60 * 60 * 1000);
+      const hourStartUtc = hourStartLocal + 3 * 60 * 60 * 1000;
+      const minute = Math.floor((t - hourStartUtc) / 60000);
       const half = (t - hourStartUtc) % 60000 < 30000 ? 0 : 1;
       const key = `${minute}-${half}`;
-      const existing = buckets.get(key);
+
+      let bucket = byHour.get(hourStartUtc);
+      if (!bucket) {
+        bucket = new Map();
+        byHour.set(hourStartUtc, bucket);
+      }
+      const existing = bucket.get(key);
       if (!existing || new Date(existing.created_at).getTime() < t) {
-        buckets.set(key, r);
+        bucket.set(key, r);
       }
     }
 
-    return ROW_BUCKETS.map((rowStart) =>
-      COLS.map<Cell>((col) => {
-        const minute = rowStart + col;
-        return {
-          rowStart,
-          col,
-          minute,
-          first: buckets.get(`${minute}-0`) ?? null,
-          second: buckets.get(`${minute}-1`) ?? null,
-        };
-      }),
-    );
-  }, [results, brasiliaParts]);
+    // Ordena horas, mais recente primeiro
+    const sortedHours = Array.from(byHour.keys()).sort((a, b) => b - a);
+
+    return sortedHours.map((hourStartUtc) => {
+      const bucket = byHour.get(hourStartUtc)!;
+      // Label HH em Brasília
+      const hourLabel = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        hour12: false,
+      }).format(new Date(hourStartUtc));
+
+      const rows = ROW_BUCKETS.map((rowStart) =>
+        COLS.map<Cell>((col) => {
+          const minute = rowStart + col;
+          return {
+            rowStart,
+            col,
+            minute,
+            first: bucket.get(`${minute}-0`) ?? null,
+            second: bucket.get(`${minute}-1`) ?? null,
+          };
+        }),
+      );
+
+      return { hourStartUtc, hourLabel, rows };
+    });
+  }, [results]);
 
   // Stats over the displayed Brasília hour
   const stats = useMemo(() => {
