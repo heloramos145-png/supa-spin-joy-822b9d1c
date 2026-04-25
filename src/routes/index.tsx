@@ -58,17 +58,7 @@ const COLS = Array.from({ length: 10 }, (_, i) => i);
 // Each minute has 2 cells: half 0 (seconds 0-29) and half 1 (seconds 30-59)
 type Cell = { row: number; col: number; half: 0 | 1; result: DoubleRow | null };
 
-function stoneIcon(color: number) {
-  if (color === 0) return stoneWhite;
-  if (color === 1) return stoneGreen;
-  return stoneBlack;
-}
 
-function stoneTextClass(color: number) {
-  if (color === 0) return "text-zinc-900";
-  if (color === 1) return "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]";
-  return "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]";
-}
 
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
