@@ -307,8 +307,21 @@ function Index() {
           </div>
         </div>
 
-        {/* Grade contínua: 10 colunas, mais recentes em cima, sem espaços vazios */}
+        {/* Grade contínua: 10 colunas, header fixo 00–09, mais recentes em cima */}
         <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
+          <div className="sticky top-0 z-10 mb-1 grid gap-1 bg-slate-900/80 pb-1 backdrop-blur"
+               style={{ gridTemplateColumns: "repeat(10, 56px)" }}>
+            {COLS.map((c) => (
+              <div
+                key={c}
+                className="flex h-7 items-center justify-center rounded bg-slate-800/70 font-bold text-slate-200"
+                style={{ width: 56, fontSize: 14 }}
+              >
+                {String(c).padStart(2, "0")}
+              </div>
+            ))}
+          </div>
+
           <div
             className="grid gap-1"
             style={{ gridTemplateColumns: "repeat(10, 56px)" }}
