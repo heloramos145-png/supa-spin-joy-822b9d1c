@@ -182,60 +182,63 @@ function Index() {
     };
   }, [now]);
 
-  // Build the 6×10 grid for the CURRENT Brasília hour, each cell has 2 half-minute stones
-  const rows = useMemo(() => {
-    // Compute start of current Brasília hour as a UTC instant
-    const y = Number(brasiliaParts.year);
-    const mo = Number(brasiliaParts.month);
-    const d = Number(brasiliaParts.day);
-    const h = Number(brasiliaParts.hour);
-    // America/Sao_Paulo is UTC-3 year-round
-    const hourStartUtc = Date.UTC(y, mo - 1, d, h + 3, 0, 0);
-    const hourEndUtc = hourStartUtc + 60 * 60 * 1000;
+  // Agrupa pedras por hora de Brasília (UTC-3) — uma grade 6×10 por hora
+  const hourSections = useMemo(() => {
+    type Bucket = { first: DoubleRow | null; second: DoubleRow | null };
+    // Map<hourKey, Map<"minute-half", DoubleRow>>
+    // hourKey = epoch ms do início da hora em UTC para a hora de Brasília
+    const byHour = new Map<number, Map<string, DoubleRow>>();
 
-    const buckets = new Map<string, DoubleRow>();
     for (const r of results) {
       const t = new Date(r.created_at).getTime();
-      if (t < hourStartUtc || t >= hourEndUtc) continue;
-      const minute = Math.floor((t - hourStartUtc) / 60000); // 0..59
+      // Início da hora de Brasília (UTC-3) que contém esse instante
+      const localMs = t - 3 * 60 * 60 * 1000;
+      const hourStartLocal = Math.floor(localMs / (60 * 60 * 1000)) * (60 * 60 * 1000);
+      const hourStartUtc = hourStartLocal + 3 * 60 * 60 * 1000;
+      const minute = Math.floor((t - hourStartUtc) / 60000);
       const half = (t - hourStartUtc) % 60000 < 30000 ? 0 : 1;
       const key = `${minute}-${half}`;
-      const existing = buckets.get(key);
+
+      let bucket = byHour.get(hourStartUtc);
+      if (!bucket) {
+        bucket = new Map();
+        byHour.set(hourStartUtc, bucket);
+      }
+      const existing = bucket.get(key);
       if (!existing || new Date(existing.created_at).getTime() < t) {
-        buckets.set(key, r);
+        bucket.set(key, r);
       }
     }
 
-    return ROW_BUCKETS.map((rowStart) =>
-      COLS.map<Cell>((col) => {
-        const minute = rowStart + col;
-        return {
-          rowStart,
-          col,
-          minute,
-          first: buckets.get(`${minute}-0`) ?? null,
-          second: buckets.get(`${minute}-1`) ?? null,
-        };
-      }),
-    );
-  }, [results, brasiliaParts]);
+    // Ordena horas, mais recente primeiro
+    const sortedHours = Array.from(byHour.keys()).sort((a, b) => b - a);
 
-  // Stats over the displayed Brasília hour
-  const stats = useMemo(() => {
-    let red = 0, black = 0, white = 0, total = 0;
-    for (const row of rows) {
-      for (const cell of row) {
-        for (const r of [cell.first, cell.second]) {
-          if (!r) continue;
-          total++;
-          if (r.color === 0) white++;
-          else if (r.color === 1) red++;
-          else black++;
-        }
-      }
-    }
-    return { total, red, black, white };
-  }, [rows]);
+    return sortedHours.map((hourStartUtc) => {
+      const bucket = byHour.get(hourStartUtc)!;
+      // Label HH em Brasília
+      const hourLabel = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        hour12: false,
+      }).format(new Date(hourStartUtc));
+
+      const rows = ROW_BUCKETS.map((rowStart) =>
+        COLS.map<Cell>((col) => {
+          const minute = rowStart + col;
+          return {
+            rowStart,
+            col,
+            minute,
+            first: bucket.get(`${minute}-0`) ?? null,
+            second: bucket.get(`${minute}-1`) ?? null,
+          };
+        }),
+      );
+
+      return { hourStartUtc, hourLabel, rows };
+    });
+  }, [results]);
+
 
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
@@ -306,50 +309,66 @@ function Index() {
           </div>
         </div>
 
-        {/* Grid compacta — 10 colunas (00–09), 2 pedras por célula */}
-        <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
-          <div
-            className="grid gap-1 pb-1"
-            style={{ gridTemplateColumns: "repeat(10, 56px)" }}
-          >
-            {COLS.map((c) => (
-              <div
-                key={c}
-                className="flex h-8 items-center justify-center rounded bg-slate-800/60 font-bold text-slate-200"
-                style={{ width: 56, fontSize: 15 }}
-              >
-                {String(c).padStart(2, "0")}
-              </div>
-            ))}
-          </div>
-
-          {rows.map((row, rIdx) => (
+        {/* Grade do dia: uma sub-grade por hora de Brasília, mais recente em cima */}
+        <div className="space-y-3">
+          {hourSections.map((section) => (
             <div
-              key={rIdx}
-              className="grid gap-1 pb-1"
-              style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+              key={section.hourStartUtc}
+              className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2"
             >
-              {row.map((cell) => {
-                const minuteStr = String(cell.minute).padStart(2, "0");
-                return (
+              <div className="mb-1 flex items-center justify-between px-1">
+                <div className="text-[12px] font-bold text-emerald-400">
+                  {section.hourLabel}:00
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  Hor. de Brasília
+                </div>
+              </div>
+
+              <div
+                className="grid gap-1 pb-1"
+                style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+              >
+                {COLS.map((c) => (
                   <div
-                    key={cell.col}
-                    className="flex flex-col items-center justify-center rounded border border-slate-800/80 bg-slate-950/60"
-                    style={{ width: 56, height: 46 }}
+                    key={c}
+                    className="flex h-8 items-center justify-center rounded bg-slate-800/60 font-bold text-slate-200"
+                    style={{ width: 56, fontSize: 15 }}
                   >
-                    <div className="flex items-center justify-center gap-[2px]">
-                      <Stone result={cell.first} />
-                      <Stone result={cell.second} />
-                    </div>
-                    <div
-                      className="leading-none text-slate-400 tabular-nums"
-                      style={{ fontSize: 10, marginTop: 2 }}
-                    >
-                      {brasiliaParts.hour}:{minuteStr}
-                    </div>
+                    {String(c).padStart(2, "0")}
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {section.rows.map((row, rIdx) => (
+                <div
+                  key={rIdx}
+                  className="grid gap-1 pb-1"
+                  style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+                >
+                  {row.map((cell) => {
+                    const minuteStr = String(cell.minute).padStart(2, "0");
+                    return (
+                      <div
+                        key={cell.col}
+                        className="flex flex-col items-center justify-center rounded border border-slate-800/80 bg-slate-950/60"
+                        style={{ width: 56, height: 46 }}
+                      >
+                        <div className="flex items-center justify-center gap-[2px]">
+                          <Stone result={cell.first} />
+                          <Stone result={cell.second} />
+                        </div>
+                        <div
+                          className="leading-none text-slate-400 tabular-nums"
+                          style={{ fontSize: 10, marginTop: 2 }}
+                        >
+                          {section.hourLabel}:{minuteStr}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           ))}
         </div>
