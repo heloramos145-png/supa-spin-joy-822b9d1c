@@ -359,6 +359,19 @@ function Index() {
           </div>
         </div>
 
+        {/* Badge: última pedra recebida (debug visível) */}
+        {results[0] && (
+          <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs">
+            <span className="text-emerald-300">Última pedra recebida</span>
+            <span className="font-mono font-bold text-emerald-200">
+              {new Date(results[0].created_at).toLocaleTimeString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+              })}{" "}
+              • roll {results[0].roll}
+            </span>
+          </div>
+        )}
+
         {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
         {(() => {
           // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
