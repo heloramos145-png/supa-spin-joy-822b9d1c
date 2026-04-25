@@ -4,102 +4,76 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const API_URL =
   "https://jonbet.bet.br/api/singleplayer-originals/originals/roulette_games/recent/1";
 
-// Roulette color mapping (European/single-zero roulette)
-const RED_NUMBERS = new Set([
-  1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-]);
-
-function getColor(n: number): "red" | "black" | "green" {
-  if (n === 0) return "green";
-  return RED_NUMBERS.has(n) ? "red" : "black";
-}
-
 type ApiItem = {
-  id?: string | number;
-  game_id?: string | number;
-  number?: number;
-  result?: number;
-  color?: string;
-  created_at?: string;
-  [k: string]: unknown;
+  id: string;
+  created_at: string;
+  color: number; // 0=white, 1=red, 2=black
+  roll: number; // 0-14
+  server_seed?: string;
 };
 
-export const syncJonbetRoulette = createServerFn({ method: "POST" }).handler(async () => {
-  let apiPayload: unknown;
-  try {
-    const res = await fetch(API_URL, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (compatible; LovableRouletteSync/1.0)",
-      },
-    });
-    if (!res.ok) {
-      return { ok: false, inserted: 0, error: `Jonbet API ${res.status}` };
-    }
-    apiPayload = await res.json();
-  } catch (err) {
-    return { ok: false, inserted: 0, error: `fetch failed: ${(err as Error).message}` };
-  }
-
-  // Try to find an array of items in the payload (API shape may vary)
-  let items: ApiItem[] = [];
-  if (Array.isArray(apiPayload)) {
-    items = apiPayload as ApiItem[];
-  } else if (apiPayload && typeof apiPayload === "object") {
-    const obj = apiPayload as Record<string, unknown>;
-    for (const key of ["data", "results", "items", "recent", "games"]) {
-      if (Array.isArray(obj[key])) {
-        items = obj[key] as ApiItem[];
-        break;
+export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
+  async () => {
+    let items: ApiItem[] = [];
+    try {
+      const res = await fetch(API_URL, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+          Referer: "https://jonbet.bet.br/",
+          Origin: "https://jonbet.bet.br",
+        },
+      });
+      if (!res.ok) {
+        return { ok: false, inserted: 0, error: `Jonbet API ${res.status}` };
       }
-    }
-    if (items.length === 0) {
-      // single object
-      items = [obj as ApiItem];
-    }
-  }
-
-  const rows = items
-    .map((it) => {
-      const rawNumber =
-        typeof it.number === "number"
-          ? it.number
-          : typeof it.result === "number"
-            ? it.result
-            : null;
-      const gameId =
-        it.game_id != null
-          ? String(it.game_id)
-          : it.id != null
-            ? String(it.id)
-            : null;
-      if (rawNumber == null || gameId == null) return null;
-      const color =
-        it.color === "red" || it.color === "black" || it.color === "green"
-          ? it.color
-          : getColor(rawNumber);
+      const data = (await res.json()) as unknown;
+      if (Array.isArray(data)) {
+        items = data as ApiItem[];
+      } else {
+        return { ok: false, inserted: 0, error: "Unexpected API shape" };
+      }
+    } catch (err) {
       return {
-        game_id: gameId,
-        number: rawNumber,
-        color,
-        created_at: it.created_at ?? new Date().toISOString(),
-        raw: it as unknown,
+        ok: false,
+        inserted: 0,
+        error: `fetch failed: ${(err as Error).message}`,
       };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null);
+    }
 
-  if (rows.length === 0) {
-    return { ok: true, inserted: 0, note: "no rows in payload" };
-  }
+    const rows = items
+      .filter(
+        (it) =>
+          typeof it?.id === "string" &&
+          typeof it?.roll === "number" &&
+          typeof it?.color === "number" &&
+          typeof it?.created_at === "string",
+      )
+      .map((it) => ({
+        game_id: it.id,
+        roll: it.roll,
+        color: it.color,
+        created_at: it.created_at,
+        raw: it as unknown,
+      }));
 
-  const { error, count } = await supabaseAdmin
-    .from("roulette_results")
-    .upsert(rows, { onConflict: "game_id", count: "exact", ignoreDuplicates: true });
+    if (rows.length === 0) {
+      return { ok: true, inserted: 0, note: "no rows in payload" };
+    }
 
-  if (error) {
-    return { ok: false, inserted: 0, error: error.message };
-  }
+    const { error, count } = await supabaseAdmin
+      .from("double_results")
+      .upsert(rows, {
+        onConflict: "game_id",
+        count: "exact",
+        ignoreDuplicates: true,
+      });
 
-  return { ok: true, inserted: count ?? rows.length };
-});
+    if (error) {
+      return { ok: false, inserted: 0, error: error.message };
+    }
+
+    return { ok: true, inserted: count ?? rows.length };
+  },
+);
