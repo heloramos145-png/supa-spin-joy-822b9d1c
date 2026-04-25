@@ -337,63 +337,83 @@ function Index() {
           </div>
         </div>
 
-        {/* Grade contínua: 10 colunas, header fixo 00–09, mais recentes em cima */}
-        <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
-          <div className="sticky top-0 z-10 mb-1 grid gap-1 bg-slate-900/80 pb-1 backdrop-blur"
-               style={{ gridTemplateColumns: "repeat(10, 56px)" }}>
-            {COLS.map((c) => (
+        {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
+        {(() => {
+          // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
+          const STONE_W = 36;
+          const STONE_GAP = 4;
+          const PAD = 6;
+          const globalMax = Math.max(
+            1,
+            ...minuteRows.flatMap((row) => row.map((c) => c.stones.length)),
+          );
+          const colW = PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP;
+          const gridTemplate = `repeat(10, ${colW}px)`;
+          return (
+            <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
               <div
-                key={c}
-                className="flex h-7 items-center justify-center rounded bg-slate-800/70 font-bold text-slate-200"
-                style={{ width: 56, fontSize: 14 }}
+                className="sticky top-0 z-10 mb-1 grid gap-1 bg-slate-900/80 pb-1 backdrop-blur"
+                style={{ gridTemplateColumns: gridTemplate }}
               >
-                {String(c).padStart(2, "0")}
+                {COLS.map((c) => (
+                  <div
+                    key={c}
+                    className="flex h-7 items-center justify-center rounded bg-slate-800/70 font-bold text-slate-200"
+                    style={{ width: colW, fontSize: 14 }}
+                  >
+                    {String(c).padStart(2, "0")}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {minuteRows.map((row, rIdx) => {
-            // Quantas pedras tem a coluna mais cheia desta linha (para alinhar altura)
-            const maxStones = Math.max(1, ...row.map((c) => c.stones.length));
-            return (
-              <div
-                key={rIdx}
-                className="grid gap-1 pb-1"
-                style={{ gridTemplateColumns: "repeat(10, 56px)" }}
-              >
-                {row.map((cell) => {
-                  const hasData = cell.stones.length > 0;
-                  return (
-                    <div
-                      key={cell.minuteStartUtc}
-                      className={`flex flex-col items-center gap-[3px] rounded border p-1 ${
-                        hasData
-                          ? "border-slate-800/80 bg-slate-950/60"
-                          : "border-dashed border-slate-800/40 bg-slate-950/20"
-                      }`}
-                      style={{ width: 56, minHeight: maxStones * 40 + 4 }}
-                    >
-                      {cell.stones.map((s) => (
+              {minuteRows.map((row, rIdx) => (
+                <div
+                  key={rIdx}
+                  className="grid gap-1 pb-1"
+                  style={{ gridTemplateColumns: gridTemplate }}
+                >
+                  {row.map((cell) => {
+                    const hasData = cell.stones.length > 0;
+                    return (
+                      <div
+                        key={cell.minuteStartUtc}
+                        className={`flex flex-col items-center justify-center rounded border ${
+                          hasData
+                            ? "border-slate-800/80 bg-slate-950/60"
+                            : "border-dashed border-slate-800/40 bg-slate-950/20"
+                        }`}
+                        style={{ width: colW, padding: PAD, minHeight: STONE_W + 18 }}
+                      >
                         <div
-                          key={s.id}
-                          className="flex flex-col items-center"
+                          className="flex flex-row items-center justify-center"
+                          style={{ gap: STONE_GAP }}
                         >
-                          <Stone result={s} />
+                          {cell.stones.map((s) => (
+                            <div
+                              key={s.id}
+                              style={{ width: STONE_W, height: STONE_W }}
+                              className="flex items-center justify-center"
+                            >
+                              <Stone result={s} />
+                            </div>
+                          ))}
+                        </div>
+                        {hasData && (
                           <div
                             className="leading-none text-slate-400 tabular-nums"
-                            style={{ fontSize: 10, marginTop: 1 }}
+                            style={{ fontSize: 10, marginTop: 3 }}
                           >
                             {cell.label}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {loading && (
           <p className="text-center text-sm text-slate-400">Carregando…</p>
