@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import SpinWheel from "@/components/SpinWheel";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
