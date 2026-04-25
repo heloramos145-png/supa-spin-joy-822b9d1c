@@ -289,6 +289,14 @@ function Index() {
           </div>
         )}
 
+        {/* Roleta animada — gira ao receber novo resultado */}
+        <SpinWheel
+          roll={results[0]?.roll ?? null}
+          resultId={results[0]?.game_id ?? null}
+          status="waiting"
+          countdown={Number(brasiliaParts.second) > 0 ? 60 - Number(brasiliaParts.second) : 0}
+        />
+
         {/* Relógio de Brasília — compacto, acima do gráfico */}
         <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-1.5">
           <div className="flex items-center gap-1.5">
