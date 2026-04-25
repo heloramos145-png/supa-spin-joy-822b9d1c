@@ -240,6 +240,15 @@ function Index() {
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
 
+  // "Girando em MM:SS" — countdown to next round (rounds happen ~ every minute on Jonbet Double)
+  const spinCountdown = useMemo(() => {
+    const sec = Number(brasiliaParts.second);
+    const remaining = 60 - sec;
+    const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+    const ss = String(remaining % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  }, [brasiliaParts.second]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800/60 bg-slate-900/40">
@@ -278,36 +287,25 @@ function Index() {
           </div>
         )}
 
-        {/* Live Brasília clock — sits ABOVE the grid */}
-        <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-slate-400">
-              Horário de Brasília
+        {/* JON BET AO VIVO — banner girando, igual à roleta da Jonbet */}
+        <div className="relative overflow-hidden rounded-lg border border-blue-500/40 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 px-4 py-3 shadow-[0_0_24px_rgba(37,99,235,0.35)]">
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+              </span>
+              <span className="text-sm font-extrabold tracking-wider text-white sm:text-base">
+                JON BET AO VIVO
+              </span>
             </div>
-            <div className="text-[10px] text-slate-500">{clockDate}</div>
-          </div>
-          <div className="font-mono text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">
-            {clockTime}
-          </div>
-        </div>
-
-        {/* Stats strip (current Brasília hour) */}
-        <div className="grid grid-cols-4 gap-2 text-center text-sm">
-          <div className="rounded-md border border-slate-800 bg-slate-900/50 py-2">
-            <div className="text-[11px] uppercase text-slate-400">Total</div>
-            <div className="font-bold">{stats.total}</div>
-          </div>
-          <div className="rounded-md border border-emerald-700/40 bg-emerald-500/10 py-2">
-            <div className="text-[11px] uppercase text-emerald-300">Verde</div>
-            <div className="font-bold text-emerald-200">{stats.red}</div>
-          </div>
-          <div className="rounded-md border border-zinc-700/60 bg-zinc-800/40 py-2">
-            <div className="text-[11px] uppercase text-zinc-300">Preto</div>
-            <div className="font-bold">{stats.black}</div>
-          </div>
-          <div className="rounded-md border border-slate-300/30 bg-white/5 py-2">
-            <div className="text-[11px] uppercase text-slate-300">Branco</div>
-            <div className="font-bold">{stats.white}</div>
+            <div className="font-mono text-base font-bold tabular-nums text-white sm:text-lg">
+              Girando em {spinCountdown}
+            </div>
+            <div className="hidden text-[11px] text-blue-100 sm:block">
+              {clockDate} • {clockTime}
+            </div>
           </div>
         </div>
 
@@ -332,15 +330,24 @@ function Index() {
                 key={rIdx}
                 className="mb-[3px] grid grid-cols-10 gap-[3px]"
               >
-                {row.map((cell) => (
-                  <div
-                    key={cell.col}
-                    className="flex items-center justify-center gap-[3px] rounded border border-slate-800/80 bg-slate-950/60 p-1"
-                  >
-                    <Stone result={cell.first} />
-                    <Stone result={cell.second} />
-                  </div>
-                ))}
+                {row.map((cell) => {
+                  const mm = String(Math.floor(cell.minute / 10)).padStart(2, "0");
+                  const ss = String(cell.minute % 10).padStart(2, "0");
+                  return (
+                    <div
+                      key={cell.col}
+                      className="flex flex-col items-center justify-center gap-[2px] rounded border border-slate-800/80 bg-slate-950/60 p-1"
+                    >
+                      <div className="flex items-center justify-center gap-[3px]">
+                        <Stone result={cell.first} />
+                        <Stone result={cell.second} />
+                      </div>
+                      <div className="text-[9px] font-medium leading-none text-slate-400 tabular-nums">
+                        {brasiliaParts.hour}:{mm}{ss}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
