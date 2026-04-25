@@ -62,8 +62,8 @@ function Stone({ result }: { result: DoubleRow | null }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      width={22}
-      height={22}
+      width={24}
+      height={24}
       className="block"
       aria-label={`pedra ${result.roll}`}
     >
@@ -287,70 +287,84 @@ function Index() {
           </div>
         )}
 
-        {/* JON BET AO VIVO — banner girando, igual à roleta da Jonbet */}
-        <div className="relative overflow-hidden rounded-lg border border-blue-500/40 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 px-4 py-3 shadow-[0_0_24px_rgba(37,99,235,0.35)]">
+        {/* JON BET AO VIVO — banner compacto, igual à roleta da Jonbet */}
+        <div className="relative overflow-hidden rounded-md border border-blue-500/40 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 px-3 py-1.5 shadow-[0_0_16px_rgba(37,99,235,0.3)]">
           <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
+          <div className="relative flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
               </span>
-              <span className="text-sm font-extrabold tracking-wider text-white sm:text-base">
+              <span className="text-[11px] font-extrabold tracking-wider text-white sm:text-xs">
                 JON BET AO VIVO
               </span>
             </div>
-            <div className="font-mono text-base font-bold tabular-nums text-white sm:text-lg">
+            <div className="font-mono text-[12px] font-bold tabular-nums text-white sm:text-sm">
               Girando em {spinCountdown}
             </div>
-            <div className="hidden text-[11px] text-blue-100 sm:block">
-              {clockDate} • {clockTime}
+            <div className="hidden text-[10px] text-blue-100 sm:block">
+              {clockTime}
             </div>
           </div>
         </div>
 
-        {/* Grid — 10 columns (00–09), 6 rows (10-min buckets, no side labels) */}
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-2">
-          <div className="min-w-[560px]">
-            {/* Column header */}
-            <div className="grid grid-cols-10 gap-[3px] pb-[4px]">
-              {COLS.map((c) => (
-                <div
-                  key={c}
-                  className="rounded bg-slate-800/60 py-0.5 text-center text-[13px] font-bold text-slate-200"
-                >
-                  {String(c).padStart(2, "0")}
-                </div>
-              ))}
-            </div>
+        {/* Roleta Jon Bet ao vivo — iframe direto do site */}
+        <div className="overflow-hidden rounded-md border border-slate-800 bg-slate-900/40">
+          <iframe
+            src="https://blaze.com/pt/games/double"
+            title="Roleta Double ao vivo"
+            className="h-[260px] w-full sm:h-[320px]"
+            loading="lazy"
+            allow="autoplay; fullscreen"
+          />
+        </div>
 
-            {/* Rows */}
-            {rows.map((row, rIdx) => (
+        {/* Grid compacta — 10 colunas (00–09), células 44x42 */}
+        <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
+          <div
+            className="grid gap-1 pb-1"
+            style={{ gridTemplateColumns: "repeat(10, 44px)" }}
+          >
+            {COLS.map((c) => (
               <div
-                key={rIdx}
-                className="mb-[3px] grid grid-cols-10 gap-[3px]"
+                key={c}
+                className="flex h-8 items-center justify-center rounded bg-slate-800/60 font-bold text-slate-200"
+                style={{ width: 44, fontSize: 15 }}
               >
-                {row.map((cell) => {
-                  const mm = String(Math.floor(cell.minute / 10)).padStart(2, "0");
-                  const ss = String(cell.minute % 10).padStart(2, "0");
-                  return (
-                    <div
-                      key={cell.col}
-                      className="flex flex-col items-center justify-center gap-[2px] rounded border border-slate-800/80 bg-slate-950/60 p-1"
-                    >
-                      <div className="flex items-center justify-center gap-[3px]">
-                        <Stone result={cell.first} />
-                        <Stone result={cell.second} />
-                      </div>
-                      <div className="text-[9px] font-medium leading-none text-slate-400 tabular-nums">
-                        {brasiliaParts.hour}:{mm}{ss}
-                      </div>
-                    </div>
-                  );
-                })}
+                {String(c).padStart(2, "0")}
               </div>
             ))}
           </div>
+
+          {rows.map((row, rIdx) => (
+            <div
+              key={rIdx}
+              className="grid gap-1 pb-1"
+              style={{ gridTemplateColumns: "repeat(10, 44px)" }}
+            >
+              {row.map((cell) => {
+                const stone = cell.second ?? cell.first;
+                const mm = String(Math.floor(cell.minute / 10)).padStart(2, "0");
+                const ss = String(cell.minute % 10).padStart(2, "0");
+                return (
+                  <div
+                    key={cell.col}
+                    className="flex flex-col items-center justify-center rounded border border-slate-800/80 bg-slate-950/60"
+                    style={{ width: 44, height: 42 }}
+                  >
+                    <Stone result={stone} />
+                    <div
+                      className="leading-none text-slate-400 tabular-nums"
+                      style={{ fontSize: 11, marginTop: 2 }}
+                    >
+                      {brasiliaParts.hour}:{mm}{ss}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         {loading && (
