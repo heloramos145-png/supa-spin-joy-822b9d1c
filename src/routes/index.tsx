@@ -41,6 +41,12 @@ type Cell = {
   second: DoubleRow | null;
 };
 
+type MinuteCol = {
+  minuteStartUtc: number;
+  label: string;
+  stones: DoubleRow[];
+};
+
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
