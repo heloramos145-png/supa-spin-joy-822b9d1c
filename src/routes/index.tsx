@@ -4,27 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import stone0 from "@/assets/stones/0.png";
-import stone1 from "@/assets/stones/1.png";
-import stone2 from "@/assets/stones/2.png";
-import stone3 from "@/assets/stones/3.png";
-import stone4 from "@/assets/stones/4.png";
-import stone5 from "@/assets/stones/5.png";
-import stone6 from "@/assets/stones/6.png";
-import stone7 from "@/assets/stones/7.png";
-import stone8 from "@/assets/stones/8.png";
-import stone9 from "@/assets/stones/9.png";
-import stone10 from "@/assets/stones/10.png";
-import stone11 from "@/assets/stones/11.png";
-import stone12 from "@/assets/stones/12.png";
-import stone13 from "@/assets/stones/13.png";
-import stone14 from "@/assets/stones/14.png";
-
-const STONES = [
-  stone0, stone1, stone2, stone3, stone4, stone5, stone6, stone7,
-  stone8, stone9, stone10, stone11, stone12, stone13, stone14,
-];
-
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -43,32 +22,86 @@ type DoubleRow = {
   id: number;
   game_id: string;
   roll: number;
-  color: number; // 0=white, 1=red(1-7), 2=black(8-14)
+  color: number; // 0=white, 1=green(1-7), 2=black(8-14)
   created_at: string;
 };
 
 const POLL_MS = 5000;
 
+// 6 row buckets: top = 50–00 (newest), bottom = 00–10 (oldest within hour)
+const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
+const COLS = Array.from({ length: 10 }, (_, i) => i);
 
-
+type Cell = {
+  rowStart: number;
+  col: number;
+  minute: number;
+  first: DoubleRow | null;
+  second: DoubleRow | null;
+};
 
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="flex h-[24px] w-[24px] items-center justify-center rounded-md border border-dashed border-slate-700/40 text-[9px] text-slate-600/60">
-        ·
-      </div>
+      <div className="h-[22px] w-[22px] rounded-[5px] border border-dashed border-slate-700/40" />
     );
   }
-  const src = STONES[result.roll] ?? STONES[0];
+  // Colors faithful to the provided icons
+  let fill = "#ffffff";
+  let stroke = "#2e7d32"; // green border for white
+  let textColor = "#111827";
+  if (result.color === 1) {
+    fill = "#7CFC6B"; // bright green
+    stroke = "#3b7a2b";
+    textColor = "#0b1a06";
+  } else if (result.color === 2) {
+    fill = "#1f1f1f"; // near black
+    stroke = "#3a3a3a";
+    textColor = "#ffffff";
+  }
   return (
-    <img
-      src={src}
-      alt={`pedra ${result.roll}`}
-      title={`${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`}
-      className="h-[24px] w-[24px] object-contain"
-      draggable={false}
-    />
+    <svg
+      viewBox="0 0 24 24"
+      width={22}
+      height={22}
+      className="block"
+      aria-label={`pedra ${result.roll}`}
+    >
+      <title>
+        {new Date(result.created_at).toLocaleTimeString("pt-BR")} • {result.roll}
+      </title>
+      <rect
+        x="1.5"
+        y="1.5"
+        width="21"
+        height="21"
+        rx="5"
+        ry="5"
+        fill={fill}
+        stroke={stroke}
+        strokeWidth="1.5"
+      />
+      <circle
+        cx="12"
+        cy="12"
+        r="6.5"
+        fill="none"
+        stroke={textColor}
+        strokeWidth="1.4"
+      />
+      <text
+        x="12"
+        y="12"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontFamily="ui-sans-serif, system-ui, sans-serif"
+        fontWeight="800"
+        fontSize="9"
+        fill={textColor}
+      >
+        {result.roll}
+      </text>
+    </svg>
   );
 }
 
