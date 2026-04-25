@@ -386,7 +386,7 @@ function Index() {
                             ? "border-slate-800/80 bg-slate-950/60"
                             : "border-dashed border-slate-800/40 bg-slate-950/20"
                         }`}
-                        style={{ width: colW, padding: PAD, minHeight: STONE_W + 18 }}
+                        style={{ width: colW, padding: PAD, minHeight: 48 }}
                       >
                         <div
                           className="flex flex-row items-center justify-center"
