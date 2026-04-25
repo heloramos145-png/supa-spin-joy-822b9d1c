@@ -32,8 +32,8 @@ type DoubleRow = {
 
 const POLL_MS = 5000;
 
-// 6 row buckets: 0-9 min, 10-19, 20-29, 30-39, 40-49, 50-59
-const ROW_BUCKETS = [0, 10, 20, 30, 40, 50] as const;
+// 6 row buckets, displayed newest-first (bottom-up): 50-59 on top ... 0-9 on bottom
+const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
 // Columns 0..9 = last digit of the minute
 const COLS = Array.from({ length: 10 }, (_, i) => i);
 
