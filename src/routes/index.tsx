@@ -86,14 +86,14 @@ function Index() {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hourOffset, setHourOffset] = useState(0); // 0 = current hour
+  const [now, setNow] = useState(() => new Date());
 
   async function fetchResults() {
     const { data, error } = await supabase
       .from("double_results")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(1500);
     if (error) {
       setError(error.message);
       return;
@@ -127,96 +127,46 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Determine the displayed hour
-  const displayedHour = useMemo(() => {
-    const d = new Date();
-    d.setMinutes(0, 0, 0);
-    d.setHours(d.getHours() + hourOffset);
-    return d;
-  }, [hourOffset, lastSync]);
+  // Live clock
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
-  // Build the 60-minute, 2-half grid filled with results that fall in the displayed hour
-  const grid = useMemo<Cell[][]>(() => {
-    const start = displayedHour.getTime();
-    const end = start + 60 * 60 * 1000;
-    const buckets = new Map<string, DoubleRow>();
-    for (const r of results) {
-      const t = new Date(r.created_at).getTime();
-      if (t < start || t >= end) continue;
-      const minute = Math.floor((t - start) / 60000); // 0..59
-      const half: 0 | 1 = ((t - start) % 60000) < 30000 ? 0 : 1;
-      const key = `${minute}-${half}`;
-      // Keep latest in case of duplicates
-      const existing = buckets.get(key);
-      if (!existing || new Date(existing.created_at).getTime() < t) {
-        buckets.set(key, r);
-      }
-    }
-
-    return ROW_BUCKETS.map((rowStart) =>
-      COLS.map((col) => {
-        const minute = rowStart + col;
-        return {
-          row: rowStart,
-          col,
-          half: 0 as 0 | 1,
-          result: buckets.get(`${minute}-0`) ?? null,
-        };
-      }),
-    ).flatMap((row, idx) => {
-      // Each row is one row of 10 cells of 2 stones each
-      return [
-        row.map((c) => ({ ...c, half: 0 as 0 | 1, result: c.result })),
-        row.map((c) => ({
-          ...c,
-          half: 1 as 0 | 1,
-          result: buckets.get(`${ROW_BUCKETS[idx] + c.col}-1`) ?? null,
-        })),
-      ] as unknown as Cell[][];
-    });
-    // grid above produces array of pairs; we'll restructure below
-  }, [results, displayedHour]);
-
-  // Recombine grid into rows of cells where each cell has both halves
+  // Build rows of 10 stones each, newest first
+  const COLS_PER_ROW = 10;
+  const ROWS_VISIBLE = 30; // 300 last results visible (30 rows × 10)
   const rows = useMemo(() => {
-    return ROW_BUCKETS.map((rowStart, rIdx) => {
-      const half0 = grid[rIdx * 2];
-      const half1 = grid[rIdx * 2 + 1];
-      return COLS.map((col) => ({
-        rowStart,
-        col,
-        minute: rowStart + col,
-        first: half0?.[col]?.result ?? null,
-        second: half1?.[col]?.result ?? null,
-      }));
-    });
-  }, [grid]);
+    const r: (DoubleRow | null)[][] = [];
+    for (let i = 0; i < ROWS_VISIBLE; i++) {
+      const slice = results.slice(i * COLS_PER_ROW, (i + 1) * COLS_PER_ROW);
+      while (slice.length < COLS_PER_ROW) slice.push(null as unknown as DoubleRow);
+      r.push(slice as (DoubleRow | null)[]);
+    }
+    return r;
+  }, [results]);
 
-  // Stats over all results in displayed hour
+  // Stats over all loaded results
   const stats = useMemo(() => {
-    const start = displayedHour.getTime();
-    const end = start + 60 * 60 * 1000;
-    let red = 0,
-      black = 0,
-      white = 0,
-      total = 0;
+    let red = 0, black = 0, white = 0;
     for (const r of results) {
-      const t = new Date(r.created_at).getTime();
-      if (t < start || t >= end) continue;
-      total++;
       if (r.color === 0) white++;
       else if (r.color === 1) red++;
       else black++;
     }
-    return { total, red, black, white };
-  }, [results, displayedHour]);
+    return { total: results.length, red, black, white };
+  }, [results]);
 
-  const hourLabel = displayedHour.toLocaleString("pt-BR", {
+  const clockTime = now.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const clockDate = now.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    weekday: "long",
   });
 
   return (
@@ -228,7 +178,7 @@ function Index() {
               Análise Double Jonbet
             </h1>
             <p className="text-xs text-slate-400">
-              Grid em tempo real • atualiza a cada {POLL_MS / 1000}s
+              Atualiza a cada {POLL_MS / 1000}s • {results.length} rodadas
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -250,35 +200,26 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 px-2 py-4 sm:px-4">
+      <main className="mx-auto max-w-7xl space-y-3 px-2 py-4 sm:px-4">
         {error && (
           <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
             {error}
           </div>
         )}
 
-        {/* Hour navigator */}
-        <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/50 px-3 py-2 text-sm">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setHourOffset((h) => h - 1)}
-            className="text-slate-300"
-          >
-            ◀ Hora anterior
-          </Button>
-          <div className="font-mono font-semibold text-slate-200">
-            {hourLabel}
+        {/* Live clock — sits ABOVE the grid */}
+        <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
+          <div className="text-xs uppercase tracking-wider text-slate-400">
+            Horário
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setHourOffset((h) => Math.min(0, h + 1))}
-            disabled={hourOffset >= 0}
-            className="text-slate-300"
-          >
-            Próxima hora ▶
-          </Button>
+          <div className="text-right">
+            <div className="font-mono text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">
+              {clockTime}
+            </div>
+            <div className="text-[11px] capitalize text-slate-400">
+              {clockDate}
+            </div>
+          </div>
         </div>
 
         {/* Stats strip */}
@@ -301,52 +242,24 @@ function Index() {
           </div>
         </div>
 
-        {/* Grid */}
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-1.5">
-          <div className="min-w-[640px]">
-            {/* Column header */}
-            <div className="grid grid-cols-[56px_repeat(10,60px)] gap-[3px] pb-[3px]">
-              <div />
-              {COLS.map((c) => (
-                <div
-                  key={c}
-                  className="rounded bg-slate-800/60 py-0.5 text-center text-[14px] font-bold text-slate-200"
-                >
-                  {String(c).padStart(2, "0")}
-                </div>
-              ))}
-            </div>
-
-            {/* Rows */}
-            {rows.map((row, rIdx) => {
-              const startMin = ROW_BUCKETS[rIdx];
-              const endMin = (startMin + 10) % 60;
-              return (
-                <div
-                  key={rIdx}
-                  className="mb-[3px] grid grid-cols-[56px_repeat(10,60px)] gap-[3px]"
-                >
-                  <div className="flex items-center justify-center rounded bg-slate-800/60 px-1 text-[14px] font-semibold text-slate-300">
-                    {String(startMin).padStart(2, "0")}–
-                    {String(endMin).padStart(2, "0")}
+        {/* Grid — newest on top, 10 per row */}
+        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-2">
+          <div className="min-w-[420px]">
+            {rows.map((row, rIdx) => (
+              <div
+                key={rIdx}
+                className="mb-[3px] grid grid-cols-10 gap-[3px]"
+              >
+                {row.map((cell, cIdx) => (
+                  <div
+                    key={cIdx}
+                    className="flex items-center justify-center rounded border border-slate-800/80 bg-slate-950/60 p-1"
+                  >
+                    <Stone result={cell} />
                   </div>
-                  {row.map((cell) => (
-                    <div
-                      key={cell.col}
-                      className="flex flex-col items-center justify-center gap-[2px] rounded border border-slate-800/80 bg-slate-950/60 px-1 py-1"
-                    >
-                      <div className="flex items-center gap-[3px]">
-                        <Stone result={cell.first} />
-                        <Stone result={cell.second} />
-                      </div>
-                      <div className="text-[9px] font-mono leading-none text-slate-500">
-                        {String(cell.minute).padStart(2, "0")}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            ))}
           </div>
         </div>
 
