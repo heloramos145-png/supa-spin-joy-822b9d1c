@@ -182,61 +182,49 @@ function Index() {
     };
   }, [now]);
 
-  // Agrupa pedras por hora de Brasília (UTC-3) — uma grade 6×10 por hora
-  const hourSections = useMemo(() => {
-    type Bucket = { first: DoubleRow | null; second: DoubleRow | null };
-    // Map<hourKey, Map<"minute-half", DoubleRow>>
-    // hourKey = epoch ms do início da hora em UTC para a hora de Brasília
-    const byHour = new Map<number, Map<string, DoubleRow>>();
+  // Agrupa pedras por minuto (Brasília). Cada minuto vira uma célula com até 2 pedras.
+  // Sem espaços vazios, sem labels de hora — rolagem contínua, mais recentes em cima.
+  const minuteCells = useMemo(() => {
+    type MinuteBucket = {
+      minuteStartUtc: number;
+      label: string; // HH:MM em Brasília
+      first: DoubleRow | null;
+      second: DoubleRow | null;
+    };
+
+    const byMinute = new Map<number, MinuteBucket>();
+    const fmtHM = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
 
     for (const r of results) {
       const t = new Date(r.created_at).getTime();
-      // Início da hora de Brasília (UTC-3) que contém esse instante
-      const localMs = t - 3 * 60 * 60 * 1000;
-      const hourStartLocal = Math.floor(localMs / (60 * 60 * 1000)) * (60 * 60 * 1000);
-      const hourStartUtc = hourStartLocal + 3 * 60 * 60 * 1000;
-      const minute = Math.floor((t - hourStartUtc) / 60000);
-      const half = (t - hourStartUtc) % 60000 < 30000 ? 0 : 1;
-      const key = `${minute}-${half}`;
-
-      let bucket = byHour.get(hourStartUtc);
+      const minuteStartUtc = Math.floor(t / 60000) * 60000;
+      let bucket = byMinute.get(minuteStartUtc);
       if (!bucket) {
-        bucket = new Map();
-        byHour.set(hourStartUtc, bucket);
+        bucket = {
+          minuteStartUtc,
+          label: fmtHM.format(new Date(minuteStartUtc)),
+          first: null,
+          second: null,
+        };
+        byMinute.set(minuteStartUtc, bucket);
       }
-      const existing = bucket.get(key);
+      // first = primeira metade do minuto, second = segunda metade
+      const half = t - minuteStartUtc < 30000 ? "first" : "second";
+      const existing = bucket[half];
       if (!existing || new Date(existing.created_at).getTime() < t) {
-        bucket.set(key, r);
+        bucket[half] = r;
       }
     }
 
-    // Ordena horas, mais recente primeiro
-    const sortedHours = Array.from(byHour.keys()).sort((a, b) => b - a);
-
-    return sortedHours.map((hourStartUtc) => {
-      const bucket = byHour.get(hourStartUtc)!;
-      // Label HH em Brasília
-      const hourLabel = new Intl.DateTimeFormat("pt-BR", {
-        timeZone: "America/Sao_Paulo",
-        hour: "2-digit",
-        hour12: false,
-      }).format(new Date(hourStartUtc));
-
-      const rows = ROW_BUCKETS.map((rowStart) =>
-        COLS.map<Cell>((col) => {
-          const minute = rowStart + col;
-          return {
-            rowStart,
-            col,
-            minute,
-            first: bucket.get(`${minute}-0`) ?? null,
-            second: bucket.get(`${minute}-1`) ?? null,
-          };
-        }),
-      );
-
-      return { hourStartUtc, hourLabel, rows };
-    });
+    // Mais recente primeiro
+    return Array.from(byMinute.values()).sort(
+      (a, b) => b.minuteStartUtc - a.minuteStartUtc,
+    );
   }, [results]);
 
 
