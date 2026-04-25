@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import stoneWhite from "@/assets/stone-white.jpeg";
+import stoneGreen from "@/assets/stone-green.jpeg";
+import stoneBlack from "@/assets/stone-black.jpeg";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -37,16 +40,22 @@ const COLS = Array.from({ length: 10 }, (_, i) => i);
 // Each minute has 2 cells: half 0 (seconds 0-29) and half 1 (seconds 30-59)
 type Cell = { row: number; col: number; half: 0 | 1; result: DoubleRow | null };
 
-function colorBg(color: number) {
-  if (color === 0) return "bg-white text-zinc-900 border-zinc-300";
-  if (color === 1) return "bg-emerald-500 text-white border-emerald-700";
-  return "bg-zinc-900 text-white border-zinc-700";
+function stoneIcon(color: number) {
+  if (color === 0) return stoneWhite;
+  if (color === 1) return stoneGreen;
+  return stoneBlack;
+}
+
+function stoneTextClass(color: number) {
+  if (color === 0) return "text-zinc-900";
+  if (color === 1) return "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]";
+  return "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]";
 }
 
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-dashed border-slate-700/40 text-[10px] text-slate-600/60">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-slate-700/40 text-[10px] text-slate-600/60">
         ·
       </div>
     );
@@ -54,9 +63,19 @@ function Stone({ result }: { result: DoubleRow | null }) {
   return (
     <div
       title={`${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`}
-      className={`flex h-7 w-7 items-center justify-center rounded-full border-2 text-xs font-bold shadow-sm ${colorBg(result.color)}`}
+      className="relative h-8 w-8"
     >
-      {result.roll}
+      <img
+        src={stoneIcon(result.color)}
+        alt={`pedra ${result.roll}`}
+        className="h-8 w-8 rounded-lg object-cover"
+        draggable={false}
+      />
+      <span
+        className={`absolute inset-0 flex items-center justify-center text-xs font-extrabold ${stoneTextClass(result.color)}`}
+      >
+        {result.roll}
+      </span>
     </div>
   );
 }
