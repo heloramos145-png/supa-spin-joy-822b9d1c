@@ -352,36 +352,47 @@ function Index() {
             ))}
           </div>
 
-          {minuteRows.map((row, rIdx) => (
-            <div
-              key={rIdx}
-              className="grid gap-1 pb-1"
-              style={{ gridTemplateColumns: "repeat(10, 56px)" }}
-            >
-              {row.map((cell) => (
-                <div
-                  key={cell.minuteStartUtc}
-                  className={`flex flex-col items-center justify-center rounded border ${
-                    cell.hasData
-                      ? "border-slate-800/80 bg-slate-950/60"
-                      : "border-dashed border-slate-800/40 bg-slate-950/20"
-                  }`}
-                  style={{ width: 56, height: 46 }}
-                >
-                  <div className="flex items-center justify-center gap-[2px]">
-                    <Stone result={cell.first} />
-                    <Stone result={cell.second} />
-                  </div>
-                  <div
-                    className="leading-none text-slate-400 tabular-nums"
-                    style={{ fontSize: 10, marginTop: 2 }}
-                  >
-                    {cell.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+          {minuteRows.map((row, rIdx) => {
+            // Quantas pedras tem a coluna mais cheia desta linha (para alinhar altura)
+            const maxStones = Math.max(1, ...row.map((c) => c.stones.length));
+            return (
+              <div
+                key={rIdx}
+                className="grid gap-1 pb-1"
+                style={{ gridTemplateColumns: "repeat(10, 56px)" }}
+              >
+                {row.map((cell) => {
+                  const hasData = cell.stones.length > 0;
+                  return (
+                    <div
+                      key={cell.minuteStartUtc}
+                      className={`flex flex-col items-center gap-[3px] rounded border p-1 ${
+                        hasData
+                          ? "border-slate-800/80 bg-slate-950/60"
+                          : "border-dashed border-slate-800/40 bg-slate-950/20"
+                      }`}
+                      style={{ width: 56, minHeight: maxStones * 40 + 4 }}
+                    >
+                      {cell.stones.map((s) => (
+                        <div
+                          key={s.id}
+                          className="flex flex-col items-center"
+                        >
+                          <Stone result={s} />
+                          <div
+                            className="leading-none text-slate-400 tabular-nums"
+                            style={{ fontSize: 10, marginTop: 1 }}
+                          >
+                            {cell.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
 
         {loading && (
