@@ -39,7 +39,7 @@ type Cell = { row: number; col: number; half: 0 | 1; result: DoubleRow | null };
 
 function colorBg(color: number) {
   if (color === 0) return "bg-white text-zinc-900 border-zinc-300";
-  if (color === 1) return "bg-rose-500 text-white border-rose-700";
+  if (color === 1) return "bg-emerald-500 text-white border-emerald-700";
   return "bg-zinc-900 text-white border-zinc-700";
 }
 
