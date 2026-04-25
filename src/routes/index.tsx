@@ -268,9 +268,9 @@ function Index() {
             <div className="text-[11px] uppercase text-slate-400">Total</div>
             <div className="font-bold">{stats.total}</div>
           </div>
-          <div className="rounded-md border border-rose-700/40 bg-rose-500/10 py-2">
-            <div className="text-[11px] uppercase text-rose-300">Vermelho</div>
-            <div className="font-bold text-rose-200">{stats.red}</div>
+          <div className="rounded-md border border-emerald-700/40 bg-emerald-500/10 py-2">
+            <div className="text-[11px] uppercase text-emerald-300">Verde</div>
+            <div className="font-bold text-emerald-200">{stats.red}</div>
           </div>
           <div className="rounded-md border border-zinc-700/60 bg-zinc-800/40 py-2">
             <div className="text-[11px] uppercase text-zinc-300">Preto</div>
