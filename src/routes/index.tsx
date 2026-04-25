@@ -69,8 +69,9 @@ function Stone({ result }: { result: DoubleRow | null }) {
   return (
     <svg
       viewBox="0 0 24 24"
-      width={24}
-      height={24}
+      width="100%"
+      height="100%"
+      preserveAspectRatio="xMidYMid meet"
       className="block"
       aria-label={`pedra ${result.roll}`}
     >
