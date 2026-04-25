@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import stoneWhite from "@/assets/stone-white.jpeg";
-import stoneGreen from "@/assets/stone-green.jpeg";
-import stoneBlack from "@/assets/stone-black.jpeg";
+import stoneWhite from "@/assets/stone-white.png";
+import stoneGreen from "@/assets/stone-green.png";
+import stoneBlack from "@/assets/stone-black.png";
 
 export const Route = createFileRoute("/")({
   component: Index,
