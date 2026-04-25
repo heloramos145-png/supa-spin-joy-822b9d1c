@@ -278,22 +278,20 @@ function Index() {
           </div>
         )}
 
-        {/* Live clock — sits ABOVE the grid */}
+        {/* Live Brasília clock — sits ABOVE the grid */}
         <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
-          <div className="text-xs uppercase tracking-wider text-slate-400">
-            Horário
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-slate-400">
+              Horário de Brasília
+            </div>
+            <div className="text-[10px] text-slate-500">{clockDate}</div>
           </div>
-          <div className="text-right">
-            <div className="font-mono text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">
-              {clockTime}
-            </div>
-            <div className="text-[11px] capitalize text-slate-400">
-              {clockDate}
-            </div>
+          <div className="font-mono text-2xl font-bold tabular-nums text-emerald-400 sm:text-3xl">
+            {clockTime}
           </div>
         </div>
 
-        {/* Stats strip */}
+        {/* Stats strip (current Brasília hour) */}
         <div className="grid grid-cols-4 gap-2 text-center text-sm">
           <div className="rounded-md border border-slate-800 bg-slate-900/50 py-2">
             <div className="text-[11px] uppercase text-slate-400">Total</div>
@@ -313,20 +311,34 @@ function Index() {
           </div>
         </div>
 
-        {/* Grid — newest on top, 10 per row */}
+        {/* Grid — 10 columns (00–09), 6 rows (10-min buckets, no side labels) */}
         <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/40 p-2">
-          <div className="min-w-[420px]">
+          <div className="min-w-[560px]">
+            {/* Column header */}
+            <div className="grid grid-cols-10 gap-[3px] pb-[4px]">
+              {COLS.map((c) => (
+                <div
+                  key={c}
+                  className="rounded bg-slate-800/60 py-0.5 text-center text-[13px] font-bold text-slate-200"
+                >
+                  {String(c).padStart(2, "0")}
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
             {rows.map((row, rIdx) => (
               <div
                 key={rIdx}
                 className="mb-[3px] grid grid-cols-10 gap-[3px]"
               >
-                {row.map((cell, cIdx) => (
+                {row.map((cell) => (
                   <div
-                    key={cIdx}
-                    className="flex items-center justify-center rounded border border-slate-800/80 bg-slate-950/60 p-1"
+                    key={cell.col}
+                    className="flex items-center justify-center gap-[3px] rounded border border-slate-800/80 bg-slate-950/60 p-1"
                   >
-                    <Stone result={cell} />
+                    <Stone result={cell.first} />
+                    <Stone result={cell.second} />
                   </div>
                 ))}
               </div>
