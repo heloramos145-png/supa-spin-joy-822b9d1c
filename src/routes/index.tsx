@@ -152,47 +152,93 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Live clock
+  // Live clock — São Paulo (Brasília time)
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Build rows of 10 stones each, newest first
-  const COLS_PER_ROW = 10;
-  const ROWS_VISIBLE = 30; // 300 last results visible (30 rows × 10)
+  // Current Brasília hour reference (UTC-3, no DST)
+  const brasiliaParts = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts = fmt.formatToParts(now);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+    return {
+      day: get("day"),
+      month: get("month"),
+      year: get("year"),
+      hour: get("hour"),
+      minute: get("minute"),
+      second: get("second"),
+    };
+  }, [now]);
+
+  // Build the 6×10 grid for the CURRENT Brasília hour, each cell has 2 half-minute stones
   const rows = useMemo(() => {
-    const r: (DoubleRow | null)[][] = [];
-    for (let i = 0; i < ROWS_VISIBLE; i++) {
-      const slice = results.slice(i * COLS_PER_ROW, (i + 1) * COLS_PER_ROW);
-      while (slice.length < COLS_PER_ROW) slice.push(null as unknown as DoubleRow);
-      r.push(slice as (DoubleRow | null)[]);
-    }
-    return r;
-  }, [results]);
+    // Compute start of current Brasília hour as a UTC instant
+    const y = Number(brasiliaParts.year);
+    const mo = Number(brasiliaParts.month);
+    const d = Number(brasiliaParts.day);
+    const h = Number(brasiliaParts.hour);
+    // America/Sao_Paulo is UTC-3 year-round
+    const hourStartUtc = Date.UTC(y, mo - 1, d, h + 3, 0, 0);
+    const hourEndUtc = hourStartUtc + 60 * 60 * 1000;
 
-  // Stats over all loaded results
-  const stats = useMemo(() => {
-    let red = 0, black = 0, white = 0;
+    const buckets = new Map<string, DoubleRow>();
     for (const r of results) {
-      if (r.color === 0) white++;
-      else if (r.color === 1) red++;
-      else black++;
+      const t = new Date(r.created_at).getTime();
+      if (t < hourStartUtc || t >= hourEndUtc) continue;
+      const minute = Math.floor((t - hourStartUtc) / 60000); // 0..59
+      const half = (t - hourStartUtc) % 60000 < 30000 ? 0 : 1;
+      const key = `${minute}-${half}`;
+      const existing = buckets.get(key);
+      if (!existing || new Date(existing.created_at).getTime() < t) {
+        buckets.set(key, r);
+      }
     }
-    return { total: results.length, red, black, white };
-  }, [results]);
 
-  const clockTime = now.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const clockDate = now.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    weekday: "long",
-  });
+    return ROW_BUCKETS.map((rowStart) =>
+      COLS.map<Cell>((col) => {
+        const minute = rowStart + col;
+        return {
+          rowStart,
+          col,
+          minute,
+          first: buckets.get(`${minute}-0`) ?? null,
+          second: buckets.get(`${minute}-1`) ?? null,
+        };
+      }),
+    );
+  }, [results, brasiliaParts]);
+
+  // Stats over the displayed Brasília hour
+  const stats = useMemo(() => {
+    let red = 0, black = 0, white = 0, total = 0;
+    for (const row of rows) {
+      for (const cell of row) {
+        for (const r of [cell.first, cell.second]) {
+          if (!r) continue;
+          total++;
+          if (r.color === 0) white++;
+          else if (r.color === 1) red++;
+          else black++;
+        }
+      }
+    }
+    return { total, red, black, white };
+  }, [rows]);
+
+  const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
+  const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
