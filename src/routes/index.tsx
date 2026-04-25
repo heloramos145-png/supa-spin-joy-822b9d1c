@@ -27,7 +27,7 @@ type DoubleRow = {
   created_at: string;
 };
 
-const POLL_MS = 5000;
+const POLL_MS = 3000;
 
 // 6 row buckets: top = 50–00 (newest), bottom = 00–10 (oldest within hour)
 const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
@@ -156,16 +156,37 @@ function Index() {
       await doSync();
     })();
     const interval = setInterval(doSync, POLL_MS);
-    // Quando a aba volta a ficar visível, dispara sync na hora
     const onVisible = () => {
       if (document.visibilityState === "visible") doSync();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
+
+    // Realtime: insere pedras na hora que chegam no banco
+    const channel = supabase
+      .channel("double_results_live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "double_results" },
+        (payload) => {
+          const row = payload.new as DoubleRow;
+          setResults((prev) => {
+            if (prev.some((r) => r.id === row.id)) return prev;
+            return [row, ...prev].sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime(),
+            );
+          });
+        },
+      )
+      .subscribe();
+
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
+      supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -337,6 +358,19 @@ function Index() {
             {clockDate}
           </div>
         </div>
+
+        {/* Badge: última pedra recebida (debug visível) */}
+        {results[0] && (
+          <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs">
+            <span className="text-emerald-300">Última pedra recebida</span>
+            <span className="font-mono font-bold text-emerald-200">
+              {new Date(results[0].created_at).toLocaleTimeString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+              })}{" "}
+              • roll {results[0].roll}
+            </span>
+          </div>
+        )}
 
         {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
         {(() => {
