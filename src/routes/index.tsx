@@ -287,37 +287,23 @@ function Index() {
           </div>
         )}
 
-        {/* JON BET AO VIVO — banner compacto, igual à roleta da Jonbet */}
-        <div className="relative overflow-hidden rounded-md border border-blue-500/40 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 px-3 py-1.5 shadow-[0_0_16px_rgba(37,99,235,0.3)]">
-          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-          <div className="relative flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
-              </span>
-              <span className="text-[11px] font-extrabold tracking-wider text-white sm:text-xs">
-                JON BET AO VIVO
-              </span>
-            </div>
-            <div className="font-mono text-[12px] font-bold tabular-nums text-white sm:text-sm">
-              Girando em {spinCountdown}
-            </div>
-            <div className="hidden text-[10px] text-blue-100 sm:block">
-              {clockTime}
-            </div>
+        {/* Relógio de Brasília — compacto, acima do gráfico */}
+        <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-300">
+              Horário de Brasília
+            </span>
           </div>
-        </div>
-
-        {/* Roleta Jon Bet ao vivo — iframe direto do site */}
-        <div className="overflow-hidden rounded-md border border-slate-800 bg-slate-900/40">
-          <iframe
-            src="https://blaze.com/pt/games/double"
-            title="Roleta Double ao vivo"
-            className="h-[260px] w-full sm:h-[320px]"
-            loading="lazy"
-            allow="autoplay; fullscreen"
-          />
+          <div className="font-mono text-[14px] font-bold tabular-nums text-emerald-400 sm:text-base">
+            {clockTime}
+          </div>
+          <div className="hidden text-[10px] text-slate-400 sm:block">
+            {clockDate}
+          </div>
         </div>
 
         {/* Grid compacta — 10 colunas (00–09), células 44x42 */}
@@ -345,8 +331,7 @@ function Index() {
             >
               {row.map((cell) => {
                 const stone = cell.second ?? cell.first;
-                const mm = String(Math.floor(cell.minute / 10)).padStart(2, "0");
-                const ss = String(cell.minute % 10).padStart(2, "0");
+                const minuteStr = String(cell.minute).padStart(2, "0");
                 return (
                   <div
                     key={cell.col}
@@ -358,7 +343,7 @@ function Index() {
                       className="leading-none text-slate-400 tabular-nums"
                       style={{ fontSize: 11, marginTop: 2 }}
                     >
-                      {brasiliaParts.hour}:{mm}{ss}
+                      {brasiliaParts.hour}:{minuteStr}
                     </div>
                   </div>
                 );
