@@ -156,16 +156,37 @@ function Index() {
       await doSync();
     })();
     const interval = setInterval(doSync, POLL_MS);
-    // Quando a aba volta a ficar visível, dispara sync na hora
     const onVisible = () => {
       if (document.visibilityState === "visible") doSync();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
+
+    // Realtime: insere pedras na hora que chegam no banco
+    const channel = supabase
+      .channel("double_results_live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "double_results" },
+        (payload) => {
+          const row = payload.new as DoubleRow;
+          setResults((prev) => {
+            if (prev.some((r) => r.id === row.id)) return prev;
+            return [row, ...prev].sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime(),
+            );
+          });
+        },
+      )
+      .subscribe();
+
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
+      supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
