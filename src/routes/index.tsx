@@ -148,7 +148,17 @@ function Index() {
       await doSync();
     })();
     const interval = setInterval(doSync, POLL_MS);
-    return () => clearInterval(interval);
+    // Quando a aba volta a ficar visível, dispara sync na hora
+    const onVisible = () => {
+      if (document.visibilityState === "visible") doSync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
