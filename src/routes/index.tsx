@@ -4,9 +4,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import stoneWhite from "@/assets/stone-white.png";
-import stoneGreen from "@/assets/stone-green.png";
-import stoneBlack from "@/assets/stone-black.png";
+import stone0 from "@/assets/stones/0.png";
+import stone1 from "@/assets/stones/1.png";
+import stone2 from "@/assets/stones/2.png";
+import stone3 from "@/assets/stones/3.png";
+import stone4 from "@/assets/stones/4.png";
+import stone5 from "@/assets/stones/5.png";
+import stone6 from "@/assets/stones/6.png";
+import stone7 from "@/assets/stones/7.png";
+import stone8 from "@/assets/stones/8.png";
+import stone9 from "@/assets/stones/9.png";
+import stone10 from "@/assets/stones/10.png";
+import stone11 from "@/assets/stones/11.png";
+import stone12 from "@/assets/stones/12.png";
+import stone13 from "@/assets/stones/13.png";
+import stone14 from "@/assets/stones/14.png";
+
+const STONES = [
+  stone0, stone1, stone2, stone3, stone4, stone5, stone6, stone7,
+  stone8, stone9, stone10, stone11, stone12, stone13, stone14,
+];
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -41,43 +58,25 @@ const COLS = Array.from({ length: 10 }, (_, i) => i);
 // Each minute has 2 cells: half 0 (seconds 0-29) and half 1 (seconds 30-59)
 type Cell = { row: number; col: number; half: 0 | 1; result: DoubleRow | null };
 
-function stoneIcon(color: number) {
-  if (color === 0) return stoneWhite;
-  if (color === 1) return stoneGreen;
-  return stoneBlack;
-}
 
-function stoneTextClass(color: number) {
-  if (color === 0) return "text-zinc-900";
-  if (color === 1) return "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]";
-  return "text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]";
-}
 
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="flex h-[22px] w-[22px] items-center justify-center rounded-md border border-dashed border-slate-700/40 text-[9px] text-slate-600/60">
+      <div className="flex h-[24px] w-[24px] items-center justify-center rounded-md border border-dashed border-slate-700/40 text-[9px] text-slate-600/60">
         ·
       </div>
     );
   }
+  const src = STONES[result.roll] ?? STONES[0];
   return (
-    <div
+    <img
+      src={src}
+      alt={`pedra ${result.roll}`}
       title={`${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`}
-      className="relative h-[22px] w-[22px]"
-    >
-      <img
-        src={stoneIcon(result.color)}
-        alt={`pedra ${result.roll}`}
-        className="h-[22px] w-[22px] rounded-md object-cover"
-        draggable={false}
-      />
-      <span
-        className={`absolute inset-0 flex items-center justify-center text-[11px] font-extrabold leading-none ${stoneTextClass(result.color)}`}
-      >
-        {result.roll}
-      </span>
-    </div>
+      className="h-[24px] w-[24px] object-contain"
+      draggable={false}
+    />
   );
 }
 
