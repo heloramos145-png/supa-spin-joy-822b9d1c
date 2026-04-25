@@ -74,6 +74,22 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
       return { ok: false, inserted: 0, error: error.message };
     }
 
+    // Trim to keep only the 1500 most recent rows
+    const KEEP = 1500;
+    const { data: cutoffRow } = await supabaseAdmin
+      .from("double_results")
+      .select("created_at")
+      .order("created_at", { ascending: false })
+      .range(KEEP - 1, KEEP - 1)
+      .maybeSingle();
+
+    if (cutoffRow?.created_at) {
+      await supabaseAdmin
+        .from("double_results")
+        .delete()
+        .lt("created_at", cutoffRow.created_at);
+    }
+
     return { ok: true, inserted: count ?? rows.length };
   },
 );
