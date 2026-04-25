@@ -104,12 +104,6 @@ function Stone({ result }: { result: DoubleRow | null }) {
     </svg>
   );
 }
-      >
-        {result.roll}
-      </text>
-    </svg>
-  );
-}
 
 function Index() {
   const [results, setResults] = useState<DoubleRow[]>([]);
