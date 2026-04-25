@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { syncJonbetDouble } from "@/utils/roulette.functions";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import stoneWhite from "@/assets/stone-white.jpeg";
-import stoneGreen from "@/assets/stone-green.jpeg";
-import stoneBlack from "@/assets/stone-black.jpeg";
+import stoneWhite from "@/assets/stone-white.png";
+import stoneGreen from "@/assets/stone-green.png";
+import stoneBlack from "@/assets/stone-black.png";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -32,8 +32,9 @@ type DoubleRow = {
 
 const POLL_MS = 5000;
 
-// 6 row buckets: 0-9 min, 10-19, 20-29, 30-39, 40-49, 50-59
-const ROW_BUCKETS = [0, 10, 20, 30, 40, 50] as const;
+// Newest at the BOTTOM: row order reads top→bottom as 50–00, 40–50, ... 00–10
+// so as time advances within an hour, new stones fill upward (bottom→top)
+const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
 // Columns 0..9 = last digit of the minute
 const COLS = Array.from({ length: 10 }, (_, i) => i);
 
