@@ -352,11 +352,12 @@ function Index() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800/60 bg-slate-900/40">
+      <header className="border-b border-emerald-500/30 bg-gradient-to-r from-slate-950 via-emerald-950/40 to-slate-950">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-              Análise Double Jonbet
+            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+              <span className="text-white">FLUXO</span>
+              <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">JON</span>
             </h1>
             <p className="text-xs text-slate-400">
               Atualiza a cada {POLL_MS / 1000}s • {results.length} rodadas
