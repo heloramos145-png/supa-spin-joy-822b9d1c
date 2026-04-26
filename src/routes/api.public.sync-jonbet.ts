@@ -12,6 +12,77 @@ type ApiItem = {
   server_seed?: string;
 };
 
+async function solveCloudflareWithCapSolver(
+  url: string,
+  userAgent: string,
+): Promise<{ cookie: string; userAgent: string } | null> {
+  const apiKey = process.env.CAPSOLVER_API_KEY;
+  if (!apiKey) return null;
+
+  // Cria a task
+  const createRes = await fetch("https://api.capsolver.com/createTask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientKey: apiKey,
+      task: {
+        type: "AntiCloudflareTask",
+        websiteURL: url,
+        proxy: "", // CapSolver usa próprios IPs
+      },
+    }),
+  });
+  const createJson = (await createRes.json()) as {
+    errorId?: number;
+    errorDescription?: string;
+    taskId?: string;
+  };
+  if (createJson.errorId || !createJson.taskId) {
+    console.error("CapSolver createTask failed:", createJson.errorDescription);
+    return null;
+  }
+
+  // Polling até resolver (máx 60s)
+  const taskId = createJson.taskId;
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const pollRes = await fetch("https://api.capsolver.com/getTaskResult", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientKey: apiKey, taskId }),
+    });
+    const pollJson = (await pollRes.json()) as {
+      status?: string;
+      errorId?: number;
+      errorDescription?: string;
+      solution?: {
+        cookies?: Record<string, string> | Array<{ name: string; value: string }>;
+        userAgent?: string;
+      };
+    };
+    if (pollJson.errorId) {
+      console.error("CapSolver poll error:", pollJson.errorDescription);
+      return null;
+    }
+    if (pollJson.status === "ready" && pollJson.solution) {
+      const c = pollJson.solution.cookies;
+      let cookieStr = "";
+      if (Array.isArray(c)) {
+        cookieStr = c.map((k) => `${k.name}=${k.value}`).join("; ");
+      } else if (c && typeof c === "object") {
+        cookieStr = Object.entries(c)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("; ");
+      }
+      return {
+        cookie: cookieStr,
+        userAgent: pollJson.solution.userAgent || userAgent,
+      };
+    }
+  }
+  return null;
+}
+
 async function runSync() {
   const SUPABASE_URL = process.env.JONBET_SUPABASE_URL!;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.JONBET_SUPABASE_SERVICE_ROLE_KEY!;
@@ -19,35 +90,46 @@ async function runSync() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  let res: Response | null = null;
-  let lastStatus = 0;
-  const headerProfiles = [
-    {
-      Accept: "application/json",
-      "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-      Referer: "https://jonbet.bet.br/pt/games/double",
-      Origin: "https://jonbet.bet.br",
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    {
-      Accept: "application/json",
-      "User-Agent": "Mozilla/5.0",
-      Referer: "https://jonbet.bet.br/",
-      Origin: "https://jonbet.bet.br",
-    },
-  ] as const;
+  const baseHeaders: Record<string, string> = {
+    Accept: "application/json",
+    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    Referer: "https://jonbet.bet.br/pt/games/double",
+    Origin: "https://jonbet.bet.br",
+  };
 
-  for (const headers of headerProfiles) {
-    res = await fetch(API_URL, { headers });
-    if (res.ok) break;
-    lastStatus = res.status;
+  let res = await fetch(API_URL, { headers: baseHeaders });
+  let cfStatus = "not-attempted";
+
+  if (!res.ok && res.status === 403) {
+    if (!process.env.CAPSOLVER_API_KEY) {
+      cfStatus = "no-key";
+    } else {
+      try {
+        cfStatus = "attempting";
+        const cf = await solveCloudflareWithCapSolver(API_URL, baseHeaders["User-Agent"]);
+        if (cf?.cookie) {
+          cfStatus = `solved cookie-len=${cf.cookie.length}`;
+          res = await fetch(API_URL, {
+            headers: {
+              ...baseHeaders,
+              Cookie: cf.cookie,
+              "User-Agent": cf.userAgent || baseHeaders["User-Agent"],
+            },
+          });
+          cfStatus += ` retry-status=${res.status}`;
+        } else {
+          cfStatus = "capsolver-returned-null";
+        }
+      } catch (e) {
+        cfStatus = `capsolver-exception: ${(e as Error).message}`;
+      }
+    }
   }
 
-  if (!res?.ok) {
-    return { ok: false, inserted: 0, error: `Jonbet API ${lastStatus || 0}` };
+  if (!res.ok) {
+    return { ok: false, inserted: 0, error: `Jonbet API ${res.status}`, cf: cfStatus };
   }
   const data = (await res.json()) as unknown;
   if (!Array.isArray(data)) {
