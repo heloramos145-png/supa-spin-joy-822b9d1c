@@ -19,35 +19,37 @@ async function runSync() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  let res: Response | null = null;
-  let lastStatus = 0;
-  const headerProfiles = [
-    {
-      Accept: "application/json",
-      "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-      Referer: "https://jonbet.bet.br/pt/games/double",
-      Origin: "https://jonbet.bet.br",
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    {
-      Accept: "application/json",
-      "User-Agent": "Mozilla/5.0",
-      Referer: "https://jonbet.bet.br/",
-      Origin: "https://jonbet.bet.br",
-    },
-  ] as const;
+  const baseHeaders: Record<string, string> = {
+    Accept: "application/json",
+    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+    Referer: "https://jonbet.bet.br/pt/games/double",
+    Origin: "https://jonbet.bet.br",
+  };
 
-  for (const headers of headerProfiles) {
-    res = await fetch(API_URL, { headers });
-    if (res.ok) break;
-    lastStatus = res.status;
+  let res = await fetch(API_URL, { headers: baseHeaders });
+
+  // Se 403 (provável Cloudflare), tenta resolver via CapSolver
+  if (!res.ok && res.status === 403 && process.env.CAPSOLVER_API_KEY) {
+    try {
+      const cf = await solveCloudflareWithCapSolver(API_URL, baseHeaders["User-Agent"]);
+      if (cf?.cookie) {
+        res = await fetch(API_URL, {
+          headers: {
+            ...baseHeaders,
+            Cookie: cf.cookie,
+            "User-Agent": cf.userAgent || baseHeaders["User-Agent"],
+          },
+        });
+      }
+    } catch (e) {
+      console.error("CapSolver error:", e);
+    }
   }
 
-  if (!res?.ok) {
-    return { ok: false, inserted: 0, error: `Jonbet API ${lastStatus || 0}` };
+  if (!res.ok) {
+    return { ok: false, inserted: 0, error: `Jonbet API ${res.status}` };
   }
   const data = (await res.json()) as unknown;
   if (!Array.isArray(data)) {
