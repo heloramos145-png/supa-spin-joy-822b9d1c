@@ -193,7 +193,7 @@ export default function SpinWheel({
         >
           {strip.map((stone, index) => (
             <div key={index} style={{ width: STONE_SIZE, flexShrink: 0 }}>
-              {renderStone(stone.number, stone.color, STONE_SIZE - 16, true)}
+              {renderStone(stone.number, stone.color, STONE_SIZE, false)}
             </div>
           ))}
         </div>
