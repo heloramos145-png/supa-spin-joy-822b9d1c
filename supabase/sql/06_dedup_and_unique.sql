@@ -68,6 +68,18 @@ update public.double_results
 set minute_key = to_char(rolled_at at time zone 'America/Sao_Paulo', 'YYYY-MM-DD HH24:MI')
 where minute_key is null and rolled_at is not null;
 
+-- 2.1) Coluna auxiliar imutável para bucket de 25s
+alter table public.double_results
+add column if not exists rolled_bucket_25 bigint;
+
+update public.double_results
+set rolled_bucket_25 = floor(extract(epoch from (rolled_at at time zone 'UTC')) / 25)::bigint
+where rolled_at is not null
+  and (
+    rolled_bucket_25 is null
+    or rolled_bucket_25 <> floor(extract(epoch from (rolled_at at time zone 'UTC')) / 25)::bigint
+  );
+
 -- 3) DEDUP: mantém uma única pedra por (number, janela de 25s no rolled_at)
 -- Estratégia: agrupa pedras com mesmo number e rolled_at dentro de 25s,
 -- mantém a mais antiga, apaga as demais.
@@ -76,10 +88,9 @@ with bucketed as (
     id,
     number,
     rolled_at,
-    -- bucket de 25 segundos
-    floor(extract(epoch from rolled_at) / 25)::bigint as bucket
+    rolled_bucket_25 as bucket
   from public.double_results
-  where rolled_at is not null and number is not null
+  where rolled_at is not null and number is not null and rolled_bucket_25 is not null
 ),
 ranked as (
   select
@@ -96,14 +107,14 @@ where dr.id = ranked.id and ranked.rn > 1;
 
 -- 4) Constraint de unicidade composta: impede 2 pedras iguais no mesmo
 -- bucket de 25s (mesmo número + tempo próximo = mesma pedra duplicada).
--- Usamos um índice único em expressão.
+-- Usamos uma coluna auxiliar para evitar erro de IMMUTABLE em timestamptz.
 drop index if exists public.uniq_double_results_number_bucket;
 create unique index uniq_double_results_number_bucket
   on public.double_results (
     number,
-    (floor(extract(epoch from rolled_at) / 25)::bigint)
+    rolled_bucket_25
   )
-  where rolled_at is not null and number is not null;
+  where rolled_at is not null and number is not null and rolled_bucket_25 is not null;
 
 -- 5) Conferir resultado:
 --   select count(*) as total, count(distinct jonbet_game_id) as ids_unicos
