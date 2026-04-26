@@ -20,13 +20,49 @@ export const Route = createFileRoute("/")({
   }),
 });
 
+type RawDoubleRow = {
+  id: string | number;
+  game_id?: string | null;
+  jonbet_game_id?: string | null;
+  roll?: number | null;
+  number?: number | null;
+  color?: number | string | null;
+  created_at?: string | null;
+  rolled_at?: string | null;
+};
+
 type DoubleRow = {
-  id: number;
+  id: string;
   game_id: string;
   roll: number;
   color: number; // 0=white, 1=green(1-7), 2=black(8-14)
   created_at: string;
 };
+
+function normalizeColor(color: RawDoubleRow["color"], roll: number): number {
+  if (typeof color === "number") return color;
+  if (color === "white") return 0;
+  if (color === "red") return 1;
+  if (color === "black") return 2;
+  if (roll === 0) return 0;
+  return roll <= 7 ? 1 : 2;
+}
+
+function normalizeRow(row: RawDoubleRow): DoubleRow | null {
+  const gameId = row.game_id ?? row.jonbet_game_id ?? null;
+  const roll = row.roll ?? row.number ?? null;
+  const createdAt = row.created_at ?? row.rolled_at ?? null;
+
+  if (!gameId || typeof roll !== "number" || !createdAt) return null;
+
+  return {
+    id: String(row.id ?? gameId),
+    game_id: gameId,
+    roll,
+    color: normalizeColor(row.color, roll),
+    created_at: createdAt,
+  };
+}
 
 const POLL_MS = 3000;
 // Tempo médio de uma rodada da Jonbet Double (~37s + animação ~3s ≈ 40s).
@@ -65,7 +101,7 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   const timeDiff =
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   if (timeDiff !== 0) return timeDiff;
-  return a.id - b.id;
+  return a.id.localeCompare(b.id);
 }
 
 function Stone({ result }: { result: DoubleRow | null }) {
@@ -164,7 +200,10 @@ function Index() {
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
-    const nextResults = ((data ?? []) as DoubleRow[]).sort(compareByCreatedAtAsc);
+    const nextResults = ((data ?? []) as RawDoubleRow[])
+      .map(normalizeRow)
+      .filter((row): row is DoubleRow => row !== null)
+      .sort(compareByCreatedAtAsc);
     setResults(nextResults);
     setLoading(false);
   }
@@ -208,7 +247,8 @@ function Index() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "double_results" },
         (payload) => {
-          const row = payload.new as DoubleRow;
+          const row = normalizeRow(payload.new as RawDoubleRow);
+          if (!row) return;
           if (new Date(row.created_at).getTime() < new Date(startOfBrasiliaDayISO()).getTime()) {
             return;
           }
