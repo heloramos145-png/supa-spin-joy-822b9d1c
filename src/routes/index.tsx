@@ -214,17 +214,11 @@ function Index() {
   }, []);
 
   useEffect(() => {
-    // Catch-up: ao abrir o site, pede pro servidor buscar pedras recentes
-    // da Jonbet (REST) e salvar no banco. Isso preenche o "buraco" caso
-    // ninguém estivesse com a aba aberta. Depois recarrega do banco.
-    (async () => {
-      try {
-        await fetch("/api/public/sync-jonbet", { method: "POST" });
-      } catch {
-        // ignora — se falhar, o fetchResults abaixo ainda mostra o que tem
-      }
-      void fetchResults();
-    })();
+    // A coleta 24/7 é feita pela Edge Function `fetch-jonbet-double` do
+    // Supabase, agendada via pg_cron a cada 1 minuto. O frontend apenas LÊ
+    // do banco — não tenta sincronizar pelo navegador (Cloudflare da Jonbet
+    // bloqueia o IP do worker da Lovable com 403).
+    void fetchResults();
 
     // Realtime: insere pedras na hora que chegam no banco (se publicação estiver habilitada)
     const channel = supabase
