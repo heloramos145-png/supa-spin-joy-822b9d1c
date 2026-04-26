@@ -471,7 +471,6 @@ function Index() {
                   style={{ gridTemplateColumns: gridTemplate }}
                 >
                   {row.map((cell) => {
-                    const hasData = cell.stones.length > 0;
                     return (
                       <div
                         key={cell.minuteStartUtc}
