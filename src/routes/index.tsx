@@ -185,7 +185,7 @@ function Index() {
       setLoading(false);
     })();
 
-    // Realtime: insere pedras na hora que chegam no banco
+    // Realtime: insere pedras na hora que chegam no banco (se publicação estiver habilitada)
     const channel = supabase
       .channel("double_results_live")
       .on(
@@ -193,7 +193,6 @@ function Index() {
         { event: "INSERT", schema: "public", table: "double_results" },
         (payload) => {
           const row = payload.new as DoubleRow;
-          // Descarta pedras anteriores ao início do dia em Brasília
           if (new Date(row.created_at).getTime() < new Date(startOfBrasiliaDayISO()).getTime()) {
             return;
           }
@@ -205,8 +204,23 @@ function Index() {
       )
       .subscribe();
 
+    // Fallback robusto: refetch periódico do banco a cada 5s.
+    // Garante que pedras inseridas pelo cron (com site fechado) apareçam
+    // ao reabrir o site, mesmo se o Realtime estiver desabilitado/fora do ar.
+    const refetchInterval = setInterval(() => {
+      fetchResults();
+    }, 5000);
+
+    // Refetch também quando a aba volta a ficar visível
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchResults();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(refetchInterval);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
