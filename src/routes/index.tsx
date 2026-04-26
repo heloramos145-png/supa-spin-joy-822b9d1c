@@ -299,14 +299,16 @@ function Index() {
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
 
-  // "Girando em MM:SS" — countdown to next round (rounds happen ~ every minute on Jonbet Double)
-  const spinCountdown = useMemo(() => {
-    const sec = Number(brasiliaParts.second);
-    const remaining = 60 - sec;
-    const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
-    const ss = String(remaining % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
-  }, [brasiliaParts.second]);
+  // Countdown da próxima rodada — calculado a partir do created_at
+  // da última pedra. Cada rodada na Jonbet dura ~ROUND_SECONDS.
+  const nextRoundIn = useMemo(() => {
+    const last = results[0];
+    if (!last) return 0;
+    const elapsed = (now.getTime() - new Date(last.created_at).getTime()) / 1000;
+    const remaining = Math.max(0, Math.ceil(ROUND_SECONDS - elapsed));
+    return remaining;
+  }, [results, now]);
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
