@@ -26,7 +26,7 @@ const Slot = forwardRef<HTMLDivElement, SlotProps>(
         return (
           <div
             className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm overflow-hidden`}
-            style={{ backgroundColor: "#ffffff", border: "2.5px solid #1B7F3A" }}
+            style={{ backgroundColor: "#ffffff", border: "2.5px solid #3AA334" }}
           >
             <img
               src={brancoIcon}
