@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 const WS_URL =
   "wss://api-gaming.jonbet.bet.br/replication/?EIO=3&transport=websocket";
