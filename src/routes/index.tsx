@@ -70,44 +70,49 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="h-[28px] w-[28px] rounded-[6px] border border-dashed border-slate-700/40" />
+      <div className="h-[44px] w-[44px] rounded-[10px] border border-dashed border-slate-700/40" />
     );
   }
 
   const title = `${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`;
 
-  // Branco (color 0): pedra branca com ícone de gota da Jonbet (estilo Tipminer)
+  // Branco (color 0): tile branco com a gota verde "e" da Jonbet
   if (result.color === 0) {
     return (
       <div
         title={title}
         aria-label={`pedra branco ${result.roll}`}
-        className="h-[28px] w-[28px] rounded-[6px] overflow-hidden bg-[#fff7e6] flex items-center justify-center ring-1 ring-amber-200/60"
+        className="h-[44px] w-[44px] rounded-[10px] overflow-hidden bg-white flex items-center justify-center ring-2 ring-[#2e8b3e]"
       >
         <img
           src={brancoIcon}
           alt=""
-          className="h-[20px] w-[20px] object-contain"
+          className="h-[32px] w-[32px] object-contain"
           draggable={false}
         />
       </div>
     );
   }
 
-  // Vermelho (1) ou Preto (2) — estilo Tipminer:
-  // tile arredondado colorido com círculo branco interno e número escuro
-  const isRed = result.color === 1;
-  const bg = isRed ? "bg-[#e54b6b]" : "bg-[#2a2f4a]";
+  // Verde Jonbet (1–7): tile verde claro, número preto dentro de círculo aro preto
+  // Preto Jonbet (8–14): tile preto, número branco dentro de círculo aro branco
+  const isGreen = result.color === 1;
+  const tileBg = isGreen ? "bg-[#7cfa60]" : "bg-[#1f1f1f]";
+  const tileRing = isGreen ? "ring-[#3aa334]" : "ring-[#3a3a3a]";
+  const ringColor = isGreen ? "border-black" : "border-white";
+  const numColor = isGreen ? "text-black" : "text-white";
 
   return (
     <div
       title={title}
       aria-label={`pedra ${result.roll}`}
-      className={`h-[28px] w-[28px] rounded-[6px] ${bg} flex items-center justify-center`}
+      className={`h-[44px] w-[44px] rounded-[10px] ${tileBg} ring-2 ${tileRing} flex items-center justify-center`}
     >
-      <div className="h-[20px] w-[20px] rounded-full bg-white flex items-center justify-center">
+      <div
+        className={`h-[32px] w-[32px] rounded-full border-[2.5px] ${ringColor} flex items-center justify-center bg-transparent`}
+      >
         <span
-          className="text-[12px] font-extrabold leading-none text-slate-900 tabular-nums"
+          className={`text-[15px] font-extrabold leading-none ${numColor} tabular-nums`}
           style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
         >
           {result.roll}
@@ -430,9 +435,9 @@ function Index() {
         {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
         {(() => {
           // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
-          const STONE_W = 28;
-          const STONE_GAP = 3;
-          const PAD = 4;
+          const STONE_W = 44;
+          const STONE_GAP = 5;
+          const PAD = 6;
           const globalMax = Math.max(
             1,
             ...minuteRows.flatMap((row) => row.map((c) => c.stones.length)),
