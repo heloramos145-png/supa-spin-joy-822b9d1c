@@ -455,32 +455,23 @@ function Index() {
 
         {/* Grade contínua: 10 colunas + painel Fluxo Jon Cores grudado ao lado da coluna 9 */}
         {(() => {
-          const STONE_W = 44;
-          const STONE_GAP = 5;
-          const PAD = 6;
+          const COL_W = 52;
+          const CELL_H = 52;
           const FLUXO_W = 280;
-          const globalMax = Math.max(
-            1,
-            ...minuteRows.flatMap((row) => row.map((c) => c.stones.length)),
-          );
-          const colW = Math.max(
-            44,
-            PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP,
-          );
           return (
             <div className="overflow-x-auto rounded-md border border-[#1a2342] bg-[#0d1430] p-2">
               <div className="flex items-start gap-2">
                 {/* Coluna do histórico (10 colunas de minuto) */}
-                <div style={{ width: colW * 10 + 9 * 4 }}>
+                <div style={{ width: COL_W * 10 + 9 * 4 }}>
                   <div
                     className="sticky top-0 z-10 mb-1 grid gap-1 bg-[#0d1430]/95 pb-2 backdrop-blur"
-                    style={{ gridTemplateColumns: `repeat(10, ${colW}px)` }}
+                    style={{ gridTemplateColumns: `repeat(10, ${COL_W}px)` }}
                   >
                     {COLS.map((c) => (
                       <div
                         key={c}
                         className="flex h-8 items-center justify-center font-bold text-slate-200"
-                        style={{ width: colW, fontSize: 16 }}
+                        style={{ width: COL_W, fontSize: 16 }}
                       >
                         {String(c).padStart(2, "0")}
                       </div>
@@ -491,47 +482,37 @@ function Index() {
                     <div
                       key={rIdx}
                       className="grid gap-1 pb-1"
-                      style={{ gridTemplateColumns: `repeat(10, ${colW}px)` }}
+                      style={{ gridTemplateColumns: `repeat(10, ${COL_W}px)` }}
                     >
                       {row.map((cell) => (
                         <div
                           key={cell.minuteStartUtc}
                           className="flex flex-col items-center justify-center"
-                          style={{ width: colW, padding: PAD, minHeight: 52 }}
+                          style={{ width: COL_W, minHeight: CELL_H }}
                         >
-                          <div
-                            className="flex flex-row items-start justify-center"
-                            style={{ gap: STONE_GAP }}
-                          >
-                            {cell.stones.map((s) => {
-                              const hhmm = new Intl.DateTimeFormat("pt-BR", {
-                                timeZone: "America/Sao_Paulo",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                hour12: false,
-                              }).format(new Date(s.created_at));
-                              return (
+                          {(() => {
+                            const stone = cell.stones[cell.stones.length - 1] ?? null;
+                            const hhmm = stone
+                              ? new Intl.DateTimeFormat("pt-BR", {
+                                  timeZone: "America/Sao_Paulo",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                                }).format(new Date(stone.created_at))
+                              : cell.label;
+
+                            return (
+                              <div className="flex flex-col items-center">
+                                <Stone result={stone} />
                                 <div
-                                  key={s.id}
-                                  className="flex flex-col items-center"
-                                  style={{ width: STONE_W }}
+                                  className="mt-1 rounded-[3px] bg-slate-700/80 text-slate-100 tabular-nums font-semibold leading-none"
+                                  style={{ fontSize: 10, padding: "2px 4px" }}
                                 >
-                                  <div
-                                    style={{ width: STONE_W, height: STONE_W }}
-                                    className="flex items-center justify-center"
-                                  >
-                                    <Stone result={s} />
-                                  </div>
-                                  <div
-                                    className="mt-1 rounded-[3px] bg-slate-700/80 text-slate-100 tabular-nums font-semibold leading-none"
-                                    style={{ fontSize: 10, padding: "2px 4px" }}
-                                  >
-                                    {hhmm}
-                                  </div>
+                                  {hhmm}
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
