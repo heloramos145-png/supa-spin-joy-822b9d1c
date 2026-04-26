@@ -175,7 +175,7 @@ function Index() {
       if (today !== lastDay) {
         lastDay = today;
         setResults([]);
-        fetchResults();
+        void fetchResults();
       }
     }, 30_000);
     return () => clearInterval(id);
@@ -201,6 +201,9 @@ function Index() {
           });
         },
       )
+      .on("system", {}, () => {
+        void fetchResults();
+      })
       .subscribe();
 
     // Fallback robusto: refetch periódico do banco a cada 5s.
