@@ -158,7 +158,9 @@ function Index() {
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
-    setResults(((data ?? []) as DoubleRow[]).sort(compareByCreatedAtAsc));
+    const nextResults = ((data ?? []) as DoubleRow[]).sort(compareByCreatedAtAsc);
+    setResults(nextResults);
+    setLoading(false);
   }
 
   // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
@@ -180,10 +182,7 @@ function Index() {
   }, []);
 
   useEffect(() => {
-    (async () => {
-      await fetchResults();
-      setLoading(false);
-    })();
+    void fetchResults();
 
     // Realtime: insere pedras na hora que chegam no banco (se publicação estiver habilitada)
     const channel = supabase
@@ -208,12 +207,12 @@ function Index() {
     // Garante que pedras inseridas pelo cron (com site fechado) apareçam
     // ao reabrir o site, mesmo se o Realtime estiver desabilitado/fora do ar.
     const refetchInterval = setInterval(() => {
-      fetchResults();
+      void fetchResults();
     }, 5000);
 
     // Refetch também quando a aba volta a ficar visível
     const onVisibility = () => {
-      if (document.visibilityState === "visible") fetchResults();
+      if (document.visibilityState === "visible") void fetchResults();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
