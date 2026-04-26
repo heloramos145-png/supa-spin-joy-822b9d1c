@@ -1,0 +1,4 @@
+project_id = "gkirupsizqghgsoyjsvy"
+
+[functions.fetch-jonbet-double]
+verify_jwt = false
