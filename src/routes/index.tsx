@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
+import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import SpinWheel from "@/components/SpinWheel";
 import brancoIcon from "@/assets/branco-icon.jpeg";
 export const Route = createFileRoute("/")({
@@ -121,9 +122,22 @@ function Index() {
   });
   // now começa em 0 no SSR e só vira Date no cliente — evita hydration mismatch
   const [now, setNow] = useState<Date | null>(null);
+  const [livePreview, setLivePreview] = useState<LivePayload | null>(null);
   useEffect(() => {
     setNow(new Date());
   }, []);
+
+  // WebSocket direto na Jonbet (browser) — antecipa a pedra (status "rolling")
+  // e salva a final (status "complete") no Supabase. Só roda com a aba aberta.
+  const wsState = useJonbetWebSocket((payload) => {
+    setLivePreview(payload);
+    if (payload.status === "complete") {
+      // limpa preview após a pedra final ser confirmada
+      setTimeout(() => {
+        setLivePreview((cur) => (cur?.id === payload.id ? null : cur));
+      }, 1500);
+    }
+  });
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
@@ -328,28 +342,15 @@ function Index() {
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            {syncState.lastRunAt && (
-              <span className="text-slate-400">
-                Sync:{" "}
-                {new Date(syncState.lastRunAt).toLocaleTimeString("pt-BR")}
-              </span>
-            )}
             <span
               className={
-                syncState.status === "ok"
+                wsState.connected
                   ? "rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300"
-                  : syncState.status === "blocked"
-                  ? "rounded bg-amber-500/20 px-2 py-0.5 text-amber-300"
-                  : syncState.status === "error"
-                  ? "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
-                  : "rounded bg-slate-500/20 px-2 py-0.5 text-slate-300"
+                  : "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
               }
+              title="WebSocket Jonbet (browser)"
             >
-              {syncState.status === "ok"
-                ? "ao vivo"
-                : syncState.status === "blocked"
-                ? "bloqueado"
-                : syncState.status}
+              {wsState.connected ? "WS ao vivo" : "WS off"}
             </span>
           </div>
         </div>
@@ -370,6 +371,23 @@ function Index() {
           status="waiting"
           countdown={nextRoundIn}
         />
+
+        {/* Pedra antecipada via WebSocket — só aparece com aba aberta */}
+        {livePreview && livePreview.status === "rolling" && (
+          <div className="flex items-center justify-between rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm animate-pulse">
+            <span className="font-bold uppercase tracking-wide text-amber-300">
+              ⚡ Antecipada
+            </span>
+            <span className="font-mono text-base font-extrabold text-amber-200">
+              {livePreview.roll} •{" "}
+              {livePreview.color === 0
+                ? "BRANCO"
+                : livePreview.color === 1
+                ? "VERDE"
+                : "PRETO"}
+            </span>
+          </div>
+        )}
 
         {/* Relógio de Brasília — compacto, acima do gráfico */}
         <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-1.5">
