@@ -100,27 +100,36 @@ async function runSync() {
   };
 
   let res = await fetch(API_URL, { headers: baseHeaders });
+  let cfStatus = "not-attempted";
 
-  // Se 403 (provável Cloudflare), tenta resolver via CapSolver
-  if (!res.ok && res.status === 403 && process.env.CAPSOLVER_API_KEY) {
-    try {
-      const cf = await solveCloudflareWithCapSolver(API_URL, baseHeaders["User-Agent"]);
-      if (cf?.cookie) {
-        res = await fetch(API_URL, {
-          headers: {
-            ...baseHeaders,
-            Cookie: cf.cookie,
-            "User-Agent": cf.userAgent || baseHeaders["User-Agent"],
-          },
-        });
+  if (!res.ok && res.status === 403) {
+    if (!process.env.CAPSOLVER_API_KEY) {
+      cfStatus = "no-key";
+    } else {
+      try {
+        cfStatus = "attempting";
+        const cf = await solveCloudflareWithCapSolver(API_URL, baseHeaders["User-Agent"]);
+        if (cf?.cookie) {
+          cfStatus = `solved cookie-len=${cf.cookie.length}`;
+          res = await fetch(API_URL, {
+            headers: {
+              ...baseHeaders,
+              Cookie: cf.cookie,
+              "User-Agent": cf.userAgent || baseHeaders["User-Agent"],
+            },
+          });
+          cfStatus += ` retry-status=${res.status}`;
+        } else {
+          cfStatus = "capsolver-returned-null";
+        }
+      } catch (e) {
+        cfStatus = `capsolver-exception: ${(e as Error).message}`;
       }
-    } catch (e) {
-      console.error("CapSolver error:", e);
     }
   }
 
   if (!res.ok) {
-    return { ok: false, inserted: 0, error: `Jonbet API ${res.status}` };
+    return { ok: false, inserted: 0, error: `Jonbet API ${res.status}`, cf: cfStatus };
   }
   const data = (await res.json()) as unknown;
   if (!Array.isArray(data)) {
