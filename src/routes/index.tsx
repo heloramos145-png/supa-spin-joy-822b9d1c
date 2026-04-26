@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useClientJonbetSync, type ClientSyncState } from "@/hooks/useClientJonbetSync";
+import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import SpinWheel from "@/components/SpinWheel";
 import brancoIcon from "@/assets/branco-icon.jpeg";
 export const Route = createFileRoute("/")({
@@ -143,9 +143,10 @@ function Index() {
     setLoading(false);
   }
 
-  // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
-  // e insere no banco. O realtime abaixo entrega para o gráfico.
-  useClientJonbetSync(POLL_MS, setSyncState);
+  // Sync da Jonbet roda no servidor (cron pg_cron / Vercel cron),
+  // não no navegador — o front só lê do banco e renderiza.
+  // useClientJonbetSync foi desativado pra evitar erros "Load failed"
+  // no preview da Lovable (Cloudflare Worker é bloqueado pela Jonbet).
 
   // Detecta virada de dia em Brasília → limpa pedras antigas da tela e recarrega.
   useEffect(() => {
