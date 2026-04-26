@@ -1,4 +1,5 @@
 import { forwardRef } from "react";
+import brancoIcon from "@/assets/branco-icon.png";
 
 interface SlotProps {
   number: number;
