@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { syncJonbetDouble } from "@/utils/roulette.functions";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { useClientJonbetSync, type ClientSyncState } from "@/hooks/useClientJonbetSync";
 import SpinWheel from "@/components/SpinWheel";
 export const Route = createFileRoute("/")({
   component: Index,
