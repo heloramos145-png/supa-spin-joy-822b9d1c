@@ -622,24 +622,28 @@ function Index() {
                             key={cell.key}
                             className={`${cellWidthClass} flex-shrink-0 border-l border-white/10 px-1 py-2 overflow-hidden`}
                           >
-                            <div className="flex items-start justify-center gap-0.5">
-                              {Array.from({ length: stonesPerMinute }, (_, stoneIdx) => {
-                                const stone = cell.items[stoneIdx];
-                                return stone ? (
-                                  <Slot
-                                    key={`${cell.key}-${stone.id}`}
-                                    number={stone.roll}
-                                    color={colorName(stone.roll)}
-                                    size="sm"
-                                    timeLabel={cell.timeLabel}
-                                  />
-                                ) : (
-                                  renderEmptyStone(
-                                    `${cell.key}-empty-${stoneIdx}`,
-                                    cell.timeLabel,
-                                  )
-                                );
-                              })}
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-start justify-center gap-0.5">
+                                {Array.from({ length: stonesPerMinute }, (_, stoneIdx) => {
+                                  const stone = cell.items[stoneIdx];
+                                  return stone ? (
+                                    <Slot
+                                      key={`${cell.key}-${stone.id}`}
+                                      number={stone.roll}
+                                      color={colorName(stone.roll)}
+                                      size="sm"
+                                    />
+                                  ) : (
+                                    <div
+                                      key={`${cell.key}-empty-${stoneIdx}`}
+                                      className="h-9 w-9 rounded-lg border border-white/20 bg-white/5"
+                                    />
+                                  );
+                                })}
+                              </div>
+                              <span className="text-[11px] font-bold text-white leading-none tracking-wider bg-white/10 px-1.5 py-0.5 rounded-sm">
+                                {cell.timeLabel}
+                              </span>
                             </div>
                           </div>
                         ))}
