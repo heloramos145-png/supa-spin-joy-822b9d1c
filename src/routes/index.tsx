@@ -24,8 +24,8 @@ type RawDoubleRow = {
   id: string | number;
   game_id?: string | null;
   jonbet_game_id?: string | null;
-  roll?: number | null;
-  number?: number | null;
+  roll?: number | string | null;
+  number?: number | string | null;
   color?: number | string | null;
   created_at?: string | null;
   rolled_at?: string | null;
@@ -49,10 +49,16 @@ function normalizeColor(_color: RawDoubleRow["color"], roll: number): number {
 
 function normalizeRow(row: RawDoubleRow): DoubleRow | null {
   const gameId = row.game_id ?? row.jonbet_game_id ?? null;
-  const roll = row.roll ?? row.number ?? null;
+  const rawRoll = row.roll ?? row.number ?? null;
+  const roll =
+    typeof rawRoll === "number"
+      ? rawRoll
+      : typeof rawRoll === "string" && rawRoll.trim() !== ""
+        ? Number(rawRoll)
+        : NaN;
   const createdAt = row.created_at ?? row.rolled_at ?? null;
 
-  if (!gameId || typeof roll !== "number" || !createdAt) return null;
+  if (!gameId || !Number.isFinite(roll) || !createdAt) return null;
 
   return {
     id: String(row.id ?? gameId),
