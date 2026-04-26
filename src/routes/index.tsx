@@ -26,10 +26,23 @@ type DoubleRow = {
 };
 
 const POLL_MS = 3000;
+// Tempo médio de uma rodada da Jonbet Double (~37s + animação ~3s ≈ 40s).
+// O countdown é calculado a partir do created_at da última pedra.
+const ROUND_SECONDS = 40;
 
 // 6 row buckets: top = 50–00 (newest), bottom = 00–10 (oldest within hour)
 const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
 const COLS = Array.from({ length: 10 }, (_, i) => i);
+
+// Início do dia atual em Brasília (UTC-3, sem horário de verão) em ISO UTC.
+function startOfBrasiliaDayISO(ref: Date = new Date()): string {
+  const brasiliaNowMs = ref.getTime() - 3 * 60 * 60 * 1000;
+  const b = new Date(brasiliaNowMs);
+  const startUtc = new Date(
+    Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate(), 3, 0, 0),
+  );
+  return startUtc.toISOString();
+}
 
 type Cell = {
   rowStart: number;
@@ -123,11 +136,13 @@ function Index() {
   const [now, setNow] = useState(() => new Date());
 
   async function fetchResults() {
+    const sinceISO = startOfBrasiliaDayISO();
     const { data, error } = await supabase
       .from("double_results")
       .select("*")
+      .gte("created_at", sinceISO)
       .order("created_at", { ascending: false })
-      .limit(1500);
+      .limit(2000);
     if (error) {
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
@@ -138,6 +153,20 @@ function Index() {
   // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
   // e insere no banco. O realtime abaixo entrega para o gráfico.
   useClientJonbetSync(POLL_MS, setSyncState);
+
+  // Detecta virada de dia em Brasília → limpa pedras antigas da tela e recarrega.
+  useEffect(() => {
+    let lastDay = startOfBrasiliaDayISO();
+    const id = setInterval(() => {
+      const today = startOfBrasiliaDayISO();
+      if (today !== lastDay) {
+        lastDay = today;
+        setResults([]);
+        fetchResults();
+      }
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -153,6 +182,10 @@ function Index() {
         { event: "INSERT", schema: "public", table: "double_results" },
         (payload) => {
           const row = payload.new as DoubleRow;
+          // Descarta pedras anteriores ao início do dia em Brasília
+          if (new Date(row.created_at).getTime() < new Date(startOfBrasiliaDayISO()).getTime()) {
+            return;
+          }
           setResults((prev) => {
             if (prev.some((r) => r.id === row.id)) return prev;
             return [row, ...prev].sort(
@@ -266,14 +299,16 @@ function Index() {
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
 
-  // "Girando em MM:SS" — countdown to next round (rounds happen ~ every minute on Jonbet Double)
-  const spinCountdown = useMemo(() => {
-    const sec = Number(brasiliaParts.second);
-    const remaining = 60 - sec;
-    const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
-    const ss = String(remaining % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
-  }, [brasiliaParts.second]);
+  // Countdown da próxima rodada — calculado a partir do created_at
+  // da última pedra. Cada rodada na Jonbet dura ~ROUND_SECONDS.
+  const nextRoundIn = useMemo(() => {
+    const last = results[0];
+    if (!last) return 0;
+    const elapsed = (now.getTime() - new Date(last.created_at).getTime()) / 1000;
+    const remaining = Math.max(0, Math.ceil(ROUND_SECONDS - elapsed));
+    return remaining;
+  }, [results, now]);
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -328,7 +363,7 @@ function Index() {
           roll={results[0]?.roll ?? null}
           resultId={results[0]?.game_id ?? null}
           status="waiting"
-          countdown={Number(brasiliaParts.second) > 0 ? 60 - Number(brasiliaParts.second) : 0}
+          countdown={nextRoundIn}
         />
 
         {/* Relógio de Brasília — compacto, acima do gráfico */}
