@@ -46,8 +46,8 @@ async function runSync() {
     lastStatus = res.status;
   }
 
-  if (!res.ok) {
-    return { ok: false, inserted: 0, error: `Jonbet API ${lastStatus || res.status}` };
+  if (!res?.ok) {
+    return { ok: false, inserted: 0, error: `Jonbet API ${lastStatus || 0}` };
   }
   const data = (await res.json()) as unknown;
   if (!Array.isArray(data)) {
