@@ -24,8 +24,8 @@ type RawDoubleRow = {
   id: string | number;
   game_id?: string | null;
   jonbet_game_id?: string | null;
-  roll?: number | null;
-  number?: number | null;
+  roll?: number | string | null;
+  number?: number | string | null;
   color?: number | string | null;
   created_at?: string | null;
   rolled_at?: string | null;
