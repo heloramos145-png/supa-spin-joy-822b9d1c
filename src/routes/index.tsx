@@ -287,31 +287,41 @@ function Index() {
               Atualiza a cada {POLL_MS / 1000}s • {results.length} rodadas
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {lastSync && (
-              <span className="text-xs text-slate-400">Sync: {lastSync}</span>
+          <div className="flex items-center gap-2 text-xs">
+            {syncState.lastRunAt && (
+              <span className="text-slate-400">
+                Sync:{" "}
+                {new Date(syncState.lastRunAt).toLocaleTimeString("pt-BR")}
+              </span>
             )}
-            <Button
-              onClick={doSync}
-              disabled={syncing}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-500"
+            <span
+              className={
+                syncState.status === "ok"
+                  ? "rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300"
+                  : syncState.status === "blocked"
+                  ? "rounded bg-amber-500/20 px-2 py-0.5 text-amber-300"
+                  : syncState.status === "error"
+                  ? "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
+                  : "rounded bg-slate-500/20 px-2 py-0.5 text-slate-300"
+              }
             >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`}
-              />
-              Atualizar
-            </Button>
+              {syncState.status === "ok"
+                ? "ao vivo"
+                : syncState.status === "blocked"
+                ? "bloqueado"
+                : syncState.status}
+            </span>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl space-y-3 px-2 py-4 sm:px-4">
-        {error && (
+        {syncState.lastError && (
           <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
-            {error}
+            {syncState.lastError}
           </div>
         )}
+
 
         {/* Roleta animada — gira ao receber novo resultado */}
         <SpinWheel
