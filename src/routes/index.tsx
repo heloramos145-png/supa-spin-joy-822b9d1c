@@ -145,6 +145,7 @@ function pad2(v: number) {
 }
 
 function Index() {
+  const isMobile = useIsMobile();
   const [results, setResults] = useState<DoubleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncState, setSyncState] = useState<ClientSyncState>({
