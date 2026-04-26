@@ -150,17 +150,22 @@ export default function FluxoCores({
 }) {
   const [tab, setTab] = useState<Tab>("SG");
 
-  // Lista começa a partir do "agora" (Brasília). Quando completa 35 (todos
-  // resolvidos green/red), gera a próxima lista a partir do último sinal.
-  const signals = useMemo(() => {
-    if (!nowMs) return [];
-    let baseList = buildSignals(nowMs);
-    // Se todos os sinais já passaram, regenera começando do último
-    const allResolved = baseList.every((s) => nowMs >= s.timeMs + 120000);
-    if (allResolved && baseList.length) {
-      baseList = buildSignals(baseList[baseList.length - 1].timeMs);
-    }
-    return baseList;
+  // Lista FIXA: gerada uma vez a partir do "agora" e só regenerada
+  // quando TODOS os 35 sinais terminaram (janela passou). Não muda a cada tick.
+  const [signals, setSignals] = useState<Signal[]>([]);
+
+  useEffect(() => {
+    if (!nowMs) return;
+    setSignals((prev) => {
+      // Primeira geração
+      if (prev.length === 0) return buildSignals(nowMs);
+      // Só regenera se todos os 35 sinais já fecharam (janela máxima = +2min p/ G2)
+      const allDone = prev.every((s) => nowMs >= s.timeMs + 120000);
+      if (allDone) {
+        return buildSignals(prev[prev.length - 1].timeMs);
+      }
+      return prev;
+    });
   }, [nowMs]);
 
   const evaluated = useMemo(
