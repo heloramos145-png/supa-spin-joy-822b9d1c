@@ -136,11 +136,13 @@ function Index() {
   const [now, setNow] = useState(() => new Date());
 
   async function fetchResults() {
+    const sinceISO = startOfBrasiliaDayISO();
     const { data, error } = await supabase
       .from("double_results")
       .select("*")
+      .gte("created_at", sinceISO)
       .order("created_at", { ascending: false })
-      .limit(1500);
+      .limit(2000);
     if (error) {
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
@@ -151,6 +153,20 @@ function Index() {
   // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
   // e insere no banco. O realtime abaixo entrega para o gráfico.
   useClientJonbetSync(POLL_MS, setSyncState);
+
+  // Detecta virada de dia em Brasília → limpa pedras antigas da tela e recarrega.
+  useEffect(() => {
+    let lastDay = startOfBrasiliaDayISO();
+    const id = setInterval(() => {
+      const today = startOfBrasiliaDayISO();
+      if (today !== lastDay) {
+        lastDay = today;
+        setResults([]);
+        fetchResults();
+      }
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     (async () => {
