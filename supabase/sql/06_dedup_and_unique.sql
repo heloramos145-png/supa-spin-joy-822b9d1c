@@ -4,7 +4,8 @@
 -- Execute UMA VEZ no SQL Editor do Supabase.
 -- Idempotente: pode rodar de novo sem quebrar.
 
--- 1) Backfill: copia game_id (legacy) pra jonbet_game_id quando vazio
+-- 1) Backfill SEGURO: copia game_id (legacy) pra jonbet_game_id quando vazio
+-- Antes, remove linhas legacy cujo game_id colidiria com um jonbet_game_id já existente.
 do $$
 begin
   if exists (
@@ -13,8 +14,15 @@ begin
       and table_name = 'double_results'
       and column_name = 'game_id'
   ) then
+    delete from public.double_results a
+    using public.double_results b
+    where a.jonbet_game_id is null
+      and a.game_id is not null
+      and b.jonbet_game_id = a.game_id
+      and a.id <> b.id;
+
     update public.double_results
-    set jonbet_game_id = coalesce(jonbet_game_id, game_id)
+    set jonbet_game_id = game_id
     where jonbet_game_id is null and game_id is not null;
   end if;
 end $$;
