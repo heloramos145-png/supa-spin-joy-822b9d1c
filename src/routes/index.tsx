@@ -263,11 +263,11 @@ function Index() {
       list.push(r);
       byMinute.set(minuteStartUtc, list);
     }
-    // Ordena cada minuto por horário (recente em cima)
+    // Ordena cada minuto cronologicamente: a 1ª pedra do minuto fica à esquerda
     for (const list of byMinute.values()) {
       list.sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       );
     }
 
