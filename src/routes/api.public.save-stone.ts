@@ -67,8 +67,9 @@ export const Route = createFileRoute("/api/public/save-stone")({
             .upsert(row, { onConflict: "game_id", ignoreDuplicates: true });
 
           if (error) {
+            console.error("[save-stone] upsert error:", error.message, "row:", row);
             return new Response(
-              JSON.stringify({ ok: false, error: error.message }),
+              JSON.stringify({ ok: false, error: error.message, row }),
               { status: 500, headers: corsHeaders },
             );
           }
