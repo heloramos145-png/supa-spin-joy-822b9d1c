@@ -76,47 +76,47 @@ export const Route = createFileRoute("/api/public/save-stone")({
 
           const admin = getAdmin();
           const createdAt = body.created_at ?? new Date().toISOString();
+          const rolledAtDate = new Date(createdAt);
           const modernRow = {
             jonbet_game_id: body.id,
             number: body.roll,
             color: toColorText(body.color),
-            rolled_at: createdAt,
-            minute_key: toBrasiliaMinuteKey(new Date(createdAt)),
-            created_at: createdAt,
-          };
-          const legacyRow = {
-            game_id: body.id,
-            roll: body.roll,
-            color: body.color,
-            created_at: createdAt,
-            raw: body as unknown as Record<string, unknown>,
+            rolled_at: rolledAtDate.toISOString(),
+            minute_key: toBrasiliaMinuteKey(rolledAtDate),
           };
 
-          let error: { message: string } | null = null;
+          // Dedup defensiva: se já existe uma pedra com mesmo number numa janela
+          // de ±20s do rolled_at, é a mesma pedra (id diferente vindo de outro
+          // canal — WS vs REST). Não insere de novo.
+          const windowMs = 20_000;
+          const fromIso = new Date(rolledAtDate.getTime() - windowMs).toISOString();
+          const toIso = new Date(rolledAtDate.getTime() + windowMs).toISOString();
+          const { data: existing } = await admin
+            .from("double_results")
+            .select("id")
+            .eq("number", body.roll)
+            .gte("rolled_at", fromIso)
+            .lte("rolled_at", toIso)
+            .limit(1);
 
-          const modernResult = await admin
+          if (existing && existing.length > 0) {
+            return new Response(JSON.stringify({ ok: true, deduped: true }), {
+              status: 200,
+              headers: corsHeaders,
+            });
+          }
+
+          const { error } = await admin
             .from("double_results")
             .upsert(modernRow, {
               onConflict: "jonbet_game_id",
               ignoreDuplicates: true,
             });
 
-          if (!modernResult.error) {
-            error = null;
-          } else {
-            const legacyResult = await admin
-              .from("double_results")
-              .upsert(legacyRow, { onConflict: "game_id", ignoreDuplicates: true });
-            error = legacyResult.error;
-          }
-
           if (error) {
-            console.error("[save-stone] upsert error:", error.message, "rows:", {
-              modernRow,
-              legacyRow,
-            });
+            console.error("[save-stone] upsert error:", error.message);
             return new Response(
-              JSON.stringify({ ok: false, error: error.message, modernRow, legacyRow }),
+              JSON.stringify({ ok: false, error: error.message }),
               { status: 500, headers: corsHeaders },
             );
           }
@@ -126,7 +126,7 @@ export const Route = createFileRoute("/api/public/save-stone")({
           await admin
             .from("double_results")
             .delete()
-            .lt("created_at", startToday);
+            .lt("rolled_at", startToday);
 
           return new Response(JSON.stringify({ ok: true }), {
             status: 200,
