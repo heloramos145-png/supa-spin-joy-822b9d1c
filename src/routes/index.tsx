@@ -114,9 +114,12 @@ function Stone({ result }: { result: DoubleRow | null }) {
 function Index() {
   const [results, setResults] = useState<DoubleRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<ClientSyncState>({
+    status: "idle",
+    lastInserted: 0,
+    lastError: null,
+    lastRunAt: null,
+  });
   const [now, setNow] = useState(() => new Date());
 
   async function fetchResults() {
@@ -126,39 +129,21 @@ function Index() {
       .order("created_at", { ascending: false })
       .limit(1500);
     if (error) {
-      setError(error.message);
+      setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
-    setError(null);
     setResults((data ?? []) as DoubleRow[]);
   }
 
-  async function doSync() {
-    setSyncing(true);
-    try {
-      const res = await syncJonbetDouble();
-      if (!res.ok) setError(res.error ?? "Falha ao sincronizar");
-      setLastSync(new Date().toLocaleTimeString("pt-BR"));
-      await fetchResults();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSyncing(false);
-    }
-  }
+  // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
+  // e insere no banco. O realtime abaixo entrega para o gráfico.
+  useClientJonbetSync(POLL_MS, setSyncState);
 
   useEffect(() => {
     (async () => {
       await fetchResults();
       setLoading(false);
-      await doSync();
     })();
-    const interval = setInterval(doSync, POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") doSync();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
 
     // Realtime: insere pedras na hora que chegam no banco
     const channel = supabase
@@ -181,9 +166,6 @@ function Index() {
       .subscribe();
 
     return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -194,6 +176,7 @@ function Index() {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
 
   // Current Brasília hour reference (UTC-3, no DST)
   const brasiliaParts = useMemo(() => {
