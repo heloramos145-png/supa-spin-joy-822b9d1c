@@ -430,13 +430,12 @@ function Index() {
           </div>
         )}
 
-        {/* Grade contínua + painel Fluxo Jon Cores lado a lado em telas grandes */}
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_280px]">
-          {(() => {
-          // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
+        {/* Grade contínua: 10 colunas + painel Fluxo Jon Cores grudado ao lado da coluna 9 */}
+        {(() => {
           const STONE_W = 44;
           const STONE_GAP = 5;
           const PAD = 6;
+          const FLUXO_W = 280;
           const globalMax = Math.max(
             1,
             ...minuteRows.flatMap((row) => row.map((c) => c.stones.length)),
@@ -445,84 +444,85 @@ function Index() {
             44,
             PAD * 2 + globalMax * STONE_W + (globalMax - 1) * STONE_GAP,
           );
-          const gridTemplate = `repeat(10, ${colW}px)`;
           return (
             <div className="overflow-x-auto rounded-md border border-[#1a2342] bg-[#0d1430] p-2">
-              <div
-                className="sticky top-0 z-10 mb-1 grid gap-1 bg-[#0d1430]/95 pb-2 backdrop-blur"
-                style={{ gridTemplateColumns: gridTemplate }}
-              >
-                {COLS.map((c) => (
+              <div className="flex items-start gap-2">
+                {/* Coluna do histórico (10 colunas de minuto) */}
+                <div style={{ width: colW * 10 + 9 * 4 }}>
                   <div
-                    key={c}
-                    className="flex h-8 items-center justify-center font-bold text-slate-200"
-                    style={{ width: colW, fontSize: 16 }}
+                    className="sticky top-0 z-10 mb-1 grid gap-1 bg-[#0d1430]/95 pb-2 backdrop-blur"
+                    style={{ gridTemplateColumns: `repeat(10, ${colW}px)` }}
                   >
-                    {String(c).padStart(2, "0")}
-                  </div>
-                ))}
-              </div>
-
-              {minuteRows.map((row, rIdx) => (
-                <div
-                  key={rIdx}
-                  className="grid gap-1 pb-1"
-                  style={{ gridTemplateColumns: gridTemplate }}
-                >
-                  {row.map((cell) => {
-                    return (
+                    {COLS.map((c) => (
                       <div
-                        key={cell.minuteStartUtc}
-                        className="flex flex-col items-center justify-center"
-                        style={{ width: colW, padding: PAD, minHeight: 52 }}
+                        key={c}
+                        className="flex h-8 items-center justify-center font-bold text-slate-200"
+                        style={{ width: colW, fontSize: 16 }}
                       >
-                        <div
-                          className="flex flex-row items-start justify-center"
-                          style={{ gap: STONE_GAP }}
-                        >
-                          {cell.stones.map((s) => {
-                            const hhmm = new Intl.DateTimeFormat("pt-BR", {
-                              timeZone: "America/Sao_Paulo",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: false,
-                            }).format(new Date(s.created_at));
-                            return (
-                              <div
-                                key={s.id}
-                                className="flex flex-col items-center"
-                                style={{ width: STONE_W }}
-                              >
-                                <div
-                                  style={{ width: STONE_W, height: STONE_W }}
-                                  className="flex items-center justify-center"
-                                >
-                                  <Stone result={s} />
-                                </div>
-                                <div
-                                  className="mt-1 rounded-[3px] bg-slate-700/80 text-slate-100 tabular-nums font-semibold leading-none"
-                                  style={{
-                                    fontSize: 10,
-                                    padding: "2px 4px",
-                                  }}
-                                >
-                                  {hhmm}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        {String(c).padStart(2, "0")}
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  {minuteRows.map((row, rIdx) => (
+                    <div
+                      key={rIdx}
+                      className="grid gap-1 pb-1"
+                      style={{ gridTemplateColumns: `repeat(10, ${colW}px)` }}
+                    >
+                      {row.map((cell) => (
+                        <div
+                          key={cell.minuteStartUtc}
+                          className="flex flex-col items-center justify-center"
+                          style={{ width: colW, padding: PAD, minHeight: 52 }}
+                        >
+                          <div
+                            className="flex flex-row items-start justify-center"
+                            style={{ gap: STONE_GAP }}
+                          >
+                            {cell.stones.map((s) => {
+                              const hhmm = new Intl.DateTimeFormat("pt-BR", {
+                                timeZone: "America/Sao_Paulo",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              }).format(new Date(s.created_at));
+                              return (
+                                <div
+                                  key={s.id}
+                                  className="flex flex-col items-center"
+                                  style={{ width: STONE_W }}
+                                >
+                                  <div
+                                    style={{ width: STONE_W, height: STONE_W }}
+                                    className="flex items-center justify-center"
+                                  >
+                                    <Stone result={s} />
+                                  </div>
+                                  <div
+                                    className="mt-1 rounded-[3px] bg-slate-700/80 text-slate-100 tabular-nums font-semibold leading-none"
+                                    style={{ fontSize: 10, padding: "2px 4px" }}
+                                  >
+                                    {hhmm}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                {/* Painel Fluxo Jon Cores — ao lado da coluna 9 */}
+                <div style={{ width: FLUXO_W, flexShrink: 0 }}>
+                  <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
+                </div>
+              </div>
             </div>
           );
         })()}
-
-          <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
-        </div>
 
         {loading && (
           <p className="text-center text-sm text-slate-400">Carregando…</p>
