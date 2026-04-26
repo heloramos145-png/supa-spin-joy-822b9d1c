@@ -133,7 +133,11 @@ function Index() {
     lastError: null,
     lastRunAt: null,
   });
-  const [now, setNow] = useState(() => new Date());
+  // now começa em 0 no SSR e só vira Date no cliente — evita hydration mismatch
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
@@ -223,7 +227,7 @@ function Index() {
       second: "2-digit",
       hour12: false,
     });
-    const parts = fmt.formatToParts(now);
+    const parts = fmt.formatToParts(now ?? new Date(0));
     const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
     return {
       day: get("day"),
@@ -303,7 +307,7 @@ function Index() {
   // da última pedra. Cada rodada na Jonbet dura ~ROUND_SECONDS.
   const nextRoundIn = useMemo(() => {
     const last = results[0];
-    if (!last) return 0;
+    if (!last || !now) return 0;
     const elapsed = (now.getTime() - new Date(last.created_at).getTime()) / 1000;
     const remaining = Math.max(0, Math.ceil(ROUND_SECONDS - elapsed));
     return remaining;
