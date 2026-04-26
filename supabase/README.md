@@ -15,16 +15,16 @@ servidor do Supabase.
    supabase functions deploy fetch-jonbet-double --no-verify-jwt
    ```
 
-2. **Rodar os SQLs no SQL Editor do Supabase** (na ordem):
-   - `migrations/01_create_double_results.sql` — cria tabela
+2. **Rodar os SQLs no SQL Editor do Supabase** (na ordem, em `supabase/sql/`):
+   - `01_create_double_results.sql` — cria tabela
      ⚠️ Se você já tem uma tabela `double_results` antiga com schema
      diferente, renomeie antes:
      `ALTER TABLE public.double_results RENAME TO double_results_old;`
-   - `migrations/02_enable_cron_extensions.sql` — habilita pg_cron + pg_net
-   - `migrations/03_configure_settings.sql` — **substitua a service_role_key
-     real** antes de rodar (Project Settings → API → `service_role`)
-   - `migrations/04_wrapper_function.sql` — função wrapper
-   - `migrations/05_schedule_cron.sql` — agenda cron a cada 1 min
+   - `02_enable_cron_extensions.sql` — habilita pg_cron + pg_net
+   - `03_configure_settings.sql` — **substitua `SUA_SERVICE_ROLE_KEY_AQUI`
+     pela chave real** (Project Settings → API → `service_role`)
+   - `04_wrapper_function.sql` — função wrapper
+   - `05_schedule_cron.sql` — agenda cron a cada 1 min
 
 3. **Conferir**:
    ```sql
