@@ -71,9 +71,9 @@ function normalizeRow(row: RawDoubleRow): DoubleRow | null {
 }
 
 const POLL_MS = 3000;
-// Tempo médio de uma rodada da Jonbet Double (~37s + animação ~3s ≈ 40s).
-// O countdown é calculado a partir do created_at da última pedra.
-const ROUND_SECONDS = 40;
+// Tempo total de uma rodada da Jonbet Double:
+// 5s aceitando aposta + 11s girando = 16s.
+const ROUND_SECONDS = 16;
 
 // 6 row buckets: top = 50–00 (newest), bottom = 00–10 (oldest within hour)
 const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
