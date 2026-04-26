@@ -56,7 +56,7 @@ function normalizeRow(row: RawDoubleRow): DoubleRow | null {
       : typeof rawRoll === "string" && rawRoll.trim() !== ""
         ? Number(rawRoll)
         : NaN;
-  const createdAt = row.created_at ?? row.rolled_at ?? null;
+  const createdAt = row.rolled_at ?? row.created_at ?? null;
 
   if (!gameId || !Number.isFinite(roll) || !createdAt) return null;
 
@@ -109,10 +109,23 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   return a.id.localeCompare(b.id);
 }
 
+function dedupeResultsByMinute(rows: DoubleRow[]): DoubleRow[] {
+  const byMinute = new Map<number, DoubleRow>();
+
+  for (const row of rows) {
+    const minuteKey = Math.floor(new Date(row.created_at).getTime() / 60000);
+    byMinute.set(minuteKey, row);
+  }
+
+  return Array.from(byMinute.values()).sort(compareByCreatedAtAsc);
+}
+
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="h-[44px] w-[44px] rounded-[10px] border border-dashed border-slate-700/40" />
+      <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[10px] border border-slate-600 bg-slate-950/80">
+        <div className="h-[30px] w-[30px] rounded-full border-[3px] border-slate-100/90" />
+      </div>
     );
   }
 
