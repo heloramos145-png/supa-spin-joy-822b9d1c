@@ -227,7 +227,7 @@ function Index() {
       second: "2-digit",
       hour12: false,
     });
-    const parts = fmt.formatToParts(now);
+    const parts = fmt.formatToParts(now ?? new Date(0));
     const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
     return {
       day: get("day"),
