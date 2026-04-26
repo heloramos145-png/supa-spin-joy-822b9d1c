@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { syncJonbetDouble } from "@/utils/roulette.functions";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { useClientJonbetSync, type ClientSyncState } from "@/hooks/useClientJonbetSync";
 import SpinWheel from "@/components/SpinWheel";
 export const Route = createFileRoute("/")({
   component: Index,
@@ -116,9 +114,12 @@ function Stone({ result }: { result: DoubleRow | null }) {
 function Index() {
   const [results, setResults] = useState<DoubleRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<ClientSyncState>({
+    status: "idle",
+    lastInserted: 0,
+    lastError: null,
+    lastRunAt: null,
+  });
   const [now, setNow] = useState(() => new Date());
 
   async function fetchResults() {
@@ -128,39 +129,21 @@ function Index() {
       .order("created_at", { ascending: false })
       .limit(1500);
     if (error) {
-      setError(error.message);
+      setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
-    setError(null);
     setResults((data ?? []) as DoubleRow[]);
   }
 
-  async function doSync() {
-    setSyncing(true);
-    try {
-      const res = await syncJonbetDouble();
-      if (!res.ok) setError(res.error ?? "Falha ao sincronizar");
-      setLastSync(new Date().toLocaleTimeString("pt-BR"));
-      await fetchResults();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSyncing(false);
-    }
-  }
+  // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
+  // e insere no banco. O realtime abaixo entrega para o gráfico.
+  useClientJonbetSync(POLL_MS, setSyncState);
 
   useEffect(() => {
     (async () => {
       await fetchResults();
       setLoading(false);
-      await doSync();
     })();
-    const interval = setInterval(doSync, POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") doSync();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
 
     // Realtime: insere pedras na hora que chegam no banco
     const channel = supabase
@@ -183,9 +166,6 @@ function Index() {
       .subscribe();
 
     return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,6 +176,7 @@ function Index() {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
 
   // Current Brasília hour reference (UTC-3, no DST)
   const brasiliaParts = useMemo(() => {
@@ -306,31 +287,41 @@ function Index() {
               Atualiza a cada {POLL_MS / 1000}s • {results.length} rodadas
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {lastSync && (
-              <span className="text-xs text-slate-400">Sync: {lastSync}</span>
+          <div className="flex items-center gap-2 text-xs">
+            {syncState.lastRunAt && (
+              <span className="text-slate-400">
+                Sync:{" "}
+                {new Date(syncState.lastRunAt).toLocaleTimeString("pt-BR")}
+              </span>
             )}
-            <Button
-              onClick={doSync}
-              disabled={syncing}
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-500"
+            <span
+              className={
+                syncState.status === "ok"
+                  ? "rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300"
+                  : syncState.status === "blocked"
+                  ? "rounded bg-amber-500/20 px-2 py-0.5 text-amber-300"
+                  : syncState.status === "error"
+                  ? "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
+                  : "rounded bg-slate-500/20 px-2 py-0.5 text-slate-300"
+              }
             >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`}
-              />
-              Atualizar
-            </Button>
+              {syncState.status === "ok"
+                ? "ao vivo"
+                : syncState.status === "blocked"
+                ? "bloqueado"
+                : syncState.status}
+            </span>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl space-y-3 px-2 py-4 sm:px-4">
-        {error && (
+        {syncState.lastError && (
           <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
-            {error}
+            {syncState.lastError}
           </div>
         )}
+
 
         {/* Roleta animada — gira ao receber novo resultado */}
         <SpinWheel
