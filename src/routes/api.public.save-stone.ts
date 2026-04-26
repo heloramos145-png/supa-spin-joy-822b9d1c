@@ -8,6 +8,28 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 
+function toColorText(color: number): "white" | "red" | "black" {
+  if (color === 0) return "white";
+  if (color === 1) return "red";
+  return "black";
+}
+
+function toBrasiliaMinuteKey(date: Date): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
 function getAdmin() {
   const url = process.env.JONBET_SUPABASE_URL!;
   const key = process.env.JONBET_SUPABASE_SERVICE_ROLE_KEY!;
@@ -53,23 +75,48 @@ export const Route = createFileRoute("/api/public/save-stone")({
           }
 
           const admin = getAdmin();
-
-          const row = {
+          const createdAt = body.created_at ?? new Date().toISOString();
+          const modernRow = {
+            jonbet_game_id: body.id,
+            number: body.roll,
+            color: toColorText(body.color),
+            rolled_at: createdAt,
+            minute_key: toBrasiliaMinuteKey(new Date(createdAt)),
+            created_at: createdAt,
+          };
+          const legacyRow = {
             game_id: body.id,
             roll: body.roll,
             color: body.color,
-            created_at: body.created_at ?? new Date().toISOString(),
+            created_at: createdAt,
             raw: body as unknown as Record<string, unknown>,
           };
 
-          const { error } = await admin
+          let error: { message: string } | null = null;
+
+          const modernResult = await admin
             .from("double_results")
-            .upsert(row, { onConflict: "game_id", ignoreDuplicates: true });
+            .upsert(modernRow, {
+              onConflict: "jonbet_game_id",
+              ignoreDuplicates: true,
+            });
+
+          if (!modernResult.error) {
+            error = null;
+          } else {
+            const legacyResult = await admin
+              .from("double_results")
+              .upsert(legacyRow, { onConflict: "game_id", ignoreDuplicates: true });
+            error = legacyResult.error;
+          }
 
           if (error) {
-            console.error("[save-stone] upsert error:", error.message, "row:", row);
+            console.error("[save-stone] upsert error:", error.message, "rows:", {
+              modernRow,
+              legacyRow,
+            });
             return new Response(
-              JSON.stringify({ ok: false, error: error.message, row }),
+              JSON.stringify({ ok: false, error: error.message, modernRow, legacyRow }),
               { status: 500, headers: corsHeaders },
             );
           }
