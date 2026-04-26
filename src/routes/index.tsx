@@ -109,15 +109,28 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   return a.id.localeCompare(b.id);
 }
 
-function dedupeResultsByMinute(rows: DoubleRow[]): DoubleRow[] {
-  const byMinute = new Map<number, DoubleRow>();
+// REGRA FIXA: exatamente 2 pedras por minuto (as 2 mais recentes do minuto).
+// NÃO ALTERAR esse limite sem instrução explícita do usuário.
+const STONES_PER_MINUTE = 2;
 
-  for (const row of rows) {
+function dedupeResultsByMinute(rows: DoubleRow[]): DoubleRow[] {
+  const byMinute = new Map<number, DoubleRow[]>();
+
+  // Ordena cronologicamente para manter as últimas N do minuto
+  const sorted = [...rows].sort(compareByCreatedAtAsc);
+
+  for (const row of sorted) {
     const minuteKey = Math.floor(new Date(row.created_at).getTime() / 60000);
-    byMinute.set(minuteKey, row);
+    const list = byMinute.get(minuteKey) ?? [];
+    list.push(row);
+    // mantém apenas as STONES_PER_MINUTE mais recentes
+    if (list.length > STONES_PER_MINUTE) list.shift();
+    byMinute.set(minuteKey, list);
   }
 
-  return Array.from(byMinute.values()).sort(compareByCreatedAtAsc);
+  const flat: DoubleRow[] = [];
+  for (const list of byMinute.values()) flat.push(...list);
+  return flat.sort(compareByCreatedAtAsc);
 }
 
 function Stone({ result }: { result: DoubleRow | null }) {
