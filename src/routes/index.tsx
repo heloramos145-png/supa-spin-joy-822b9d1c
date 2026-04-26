@@ -307,7 +307,7 @@ function Index() {
   // da última pedra. Cada rodada na Jonbet dura ~ROUND_SECONDS.
   const nextRoundIn = useMemo(() => {
     const last = results[0];
-    if (!last) return 0;
+    if (!last || !now) return 0;
     const elapsed = (now.getTime() - new Date(last.created_at).getTime()) / 1000;
     const remaining = Math.max(0, Math.ceil(ROUND_SECONDS - elapsed));
     return remaining;
