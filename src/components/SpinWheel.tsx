@@ -120,30 +120,17 @@ export default function SpinWheel({
 
   const renderStone = (
     num: number,
-    color: string,
+    _color: string,
     size: number,
-    withCard = false,
+    _withCard = false,
   ) => {
-    const cardSize = size + 20;
-
-    const stone = (
-      <div className="flex items-center justify-center" style={{ width: size, height: size }}>
-        <StoneIcon roll={num} size={size} />
-      </div>
-    );
-
-    if (!withCard) return stone;
-
+    // O PNG da pedra já contém fundo + borda arredondada — não envolver em card.
     return (
       <div
-        className="flex items-center justify-center rounded-xl"
-        style={{
-          width: cardSize,
-          height: cardSize,
-          background: getCardBg(color),
-        }}
+        className="flex items-center justify-center"
+        style={{ width: size, height: size }}
       >
-        {stone}
+        <StoneIcon roll={num} size={size} />
       </div>
     );
   };
