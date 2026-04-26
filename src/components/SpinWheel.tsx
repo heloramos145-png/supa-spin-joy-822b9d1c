@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import brancoIcon from "@/assets/branco-icon.png";
+import StoneIcon from "@/components/StoneIcon";
 
 // Ordem oficial das pedras na roleta da Jonbet Double (verde / preta / branca)
 const SLOT_NUMBERS = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8];
@@ -19,12 +19,6 @@ const STEP = STONE_SIZE + GAP;
 const VISIBLE = 5;
 const TOTAL = SLOT_NUMBERS.length;
 const CONTAINER_W = VISIBLE * STONE_SIZE + (VISIBLE - 1) * GAP;
-
-const getColorBg = (color: string) => {
-  if (color === "green") return "#22c55e";
-  if (color === "white") return "#ffffff";
-  return "#1f1f1f";
-};
 
 const getCardBg = (color: string) => {
   if (color === "green") return "rgba(34,197,94,0.15)";
@@ -130,44 +124,11 @@ export default function SpinWheel({
     size: number,
     withCard = false,
   ) => {
-    const isWhite = color === "white";
     const cardSize = size + 20;
 
     const stone = (
-      <div
-        className="flex items-center justify-center rounded-full font-extrabold"
-        style={{
-          width: size,
-          height: size,
-          background: getColorBg(color),
-          color: isWhite ? "#111827" : "#ffffff",
-          boxShadow: "inset 0 0 0 2px rgba(0,0,0,0.2)",
-          fontSize: Math.round(size * 0.4),
-        }}
-      >
-        {isWhite ? (
-          <img
-            src={brancoIcon}
-            alt=""
-            draggable={false}
-            style={{
-              width: size * 0.72,
-              height: size * 0.72,
-              objectFit: "contain",
-            }}
-          />
-        ) : (
-          <div
-            className="flex items-center justify-center rounded-full"
-            style={{
-              width: size * 0.72,
-              height: size * 0.72,
-              border: `2px solid #ffffff`,
-            }}
-          >
-            {num}
-          </div>
-        )}
+      <div className="flex items-center justify-center" style={{ width: size, height: size }}>
+        <StoneIcon roll={num} size={size} />
       </div>
     );
 
