@@ -25,9 +25,9 @@ const Slot = forwardRef<HTMLDivElement, SlotProps>(
         return (
           <div
             className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm`}
-            style={{ backgroundColor: "#ffffff", border: "2.5px solid #7d2433" }}
+            style={{ backgroundColor: "#ffffff", border: "2.5px solid #1B7F3A" }}
           >
-            <span style={{ fontSize: "18px", fontWeight: 800, color: "#7d2433" }}>0</span>
+            <span style={{ fontSize: "18px", fontWeight: 800, color: "#1B7F3A" }}>0</span>
           </div>
         );
       }
