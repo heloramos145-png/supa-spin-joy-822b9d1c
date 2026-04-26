@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
+import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import SpinWheel from "@/components/SpinWheel";
 import brancoIcon from "@/assets/branco-icon.jpeg";
 export const Route = createFileRoute("/")({
