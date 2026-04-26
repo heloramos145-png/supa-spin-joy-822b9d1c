@@ -9,11 +9,11 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Análise Double Jonbet — Histórico em grid" },
+      { title: "FluxoJon — Análise Double Jonbet em tempo real" },
       {
         name: "description",
         content:
-          "Histórico do Double da Jonbet em grid de minutos: colunas 0-9, linhas a cada 10 minutos.",
+          "FluxoJon: histórico do Double da Jonbet em grid de minutos com pedras antecipadas em tempo real.",
       },
     ],
   }),
