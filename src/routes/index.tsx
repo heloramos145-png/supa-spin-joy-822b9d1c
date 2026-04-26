@@ -183,10 +183,10 @@ function Index() {
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
-    const nextResults = ((data ?? []) as RawDoubleRow[])
+    const nextResults = dedupeResultsByMinute(((data ?? []) as RawDoubleRow[])
       .map(normalizeRow)
       .filter((row): row is DoubleRow => row !== null)
-      .sort(compareByCreatedAtAsc);
+      .sort(compareByCreatedAtAsc));
     setResults(nextResults);
     setLoading(false);
   }
@@ -237,7 +237,7 @@ function Index() {
           }
           setResults((prev) => {
             if (prev.some((r) => r.id === row.id)) return prev;
-            return [...prev, row].sort(compareByCreatedAtAsc);
+            return dedupeResultsByMinute([...prev, row].sort(compareByCreatedAtAsc));
           });
         },
       )
