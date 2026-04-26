@@ -19,30 +19,43 @@ async function runSync() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const res = await fetch(API_URL, {
-    headers: {
-      "Accept": "application/json, text/plain, */*",
+  let res: Response | null = null;
+  let lastStatus = 0;
+  const headerProfiles = [
+    {
+      Accept: "application/json",
       "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
       "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      "Referer": "https://jonbet.bet.br/pt/games/double",
-      "Origin": "https://jonbet.bet.br",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-      "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
-      "Sec-Ch-Ua-Mobile": "?0",
-      "Sec-Ch-Ua-Platform": '"Windows"',
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      Referer: "https://jonbet.bet.br/pt/games/double",
+      Origin: "https://jonbet.bet.br",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
     },
-  });
-  if (!res.ok) {
-    return { ok: false, inserted: 0, error: `Jonbet API ${res.status}` };
+    {
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0",
+      Referer: "https://jonbet.bet.br/",
+      Origin: "https://jonbet.bet.br",
+    },
+  ] as const;
+
+  for (const headers of headerProfiles) {
+    res = await fetch(API_URL, { headers });
+    if (res.ok) break;
+    lastStatus = res.status;
+  }
+
+  if (!res?.ok) {
+    return { ok: false, inserted: 0, error: `Jonbet API ${lastStatus || 0}` };
   }
   const data = (await res.json()) as unknown;
   if (!Array.isArray(data)) {
     return { ok: false, inserted: 0, error: "Unexpected API shape" };
   }
-  const items = data as ApiItem[];
+  const items = (data as ApiItem[]).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
 
   const rows = items
     .filter(

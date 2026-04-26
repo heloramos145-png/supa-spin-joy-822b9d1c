@@ -16,21 +16,41 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
   async () => {
     let items: ApiItem[] = [];
     try {
-      const res = await fetch(API_URL, {
-        headers: {
+      let res: Response | null = null;
+      let lastStatus = 0;
+      const headerProfiles = [
+        {
           Accept: "application/json",
+          "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+          Referer: "https://jonbet.bet.br/pt/games/double",
+          Origin: "https://jonbet.bet.br",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0",
           Referer: "https://jonbet.bet.br/",
           Origin: "https://jonbet.bet.br",
         },
-      });
-      if (!res.ok) {
-        return { ok: false, inserted: 0, error: `Jonbet API ${res.status}` };
+      ] as const;
+
+      for (const headers of headerProfiles) {
+        res = await fetch(API_URL, { headers });
+        if (res.ok) break;
+        lastStatus = res.status;
+      }
+
+      if (!res?.ok) {
+        return { ok: false, inserted: 0, error: `Jonbet API ${lastStatus || 0}` };
       }
       const data = (await res.json()) as unknown;
       if (Array.isArray(data)) {
-        items = data as ApiItem[];
+        items = (data as ApiItem[]).sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
       } else {
         return { ok: false, inserted: 0, error: "Unexpected API shape" };
       }
