@@ -25,10 +25,15 @@ const Slot = forwardRef<HTMLDivElement, SlotProps>(
       if (isWhite) {
         return (
           <div
-            className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm`}
+            className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm overflow-hidden`}
             style={{ backgroundColor: "#ffffff", border: "2.5px solid #1B7F3A" }}
           >
-            <span style={{ fontSize: "18px", fontWeight: 800, color: "#1B7F3A" }}>0</span>
+            <img
+              src={brancoIcon}
+              alt=""
+              draggable={false}
+              className="h-full w-full object-contain"
+            />
           </div>
         );
       }
