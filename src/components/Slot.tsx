@@ -54,8 +54,12 @@ const Slot = forwardRef<HTMLDivElement, SlotProps>(
       }
       return (
         <div
-          className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm`}
-          style={{ backgroundColor: "#373737" }}
+          className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm ring-1`}
+          style={{
+            backgroundColor: "#1f1f1f",
+            // @ts-expect-error CSS var for tailwind ring color
+            "--tw-ring-color": "#3a3a3a",
+          }}
         >
           <div
             className={`${innerSize} rounded-full ${borderW} flex items-center justify-center font-bold ${numberStyle}`}
