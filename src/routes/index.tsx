@@ -155,6 +155,7 @@ function Index() {
       .order("created_at", { ascending: true })
       .range(0, 4000);
     if (error) {
+      setLoading(false);
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
