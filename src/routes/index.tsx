@@ -134,26 +134,14 @@ function dedupeResultsByMinute(rows: DoubleRow[]): DoubleRow[] {
   return flat.sort(compareByCreatedAtAsc);
 }
 
-function Stone({ result }: { result: DoubleRow | null }) {
-  if (!result) {
-    return (
-      <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[10px] border border-slate-600 bg-slate-950/80">
-        <div className="h-[30px] w-[30px] rounded-full border-[3px] border-slate-100/90" />
-      </div>
-    );
-  }
+// Stone helpers — converte DoubleRow no formato esperado pelo Slot
+function colorName(roll: number): "white" | "green" | "black" {
+  if (roll === 0) return "white";
+  return roll <= 7 ? "green" : "black";
+}
 
-  const title = `${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`;
-
-  return (
-    <div
-      title={title}
-      aria-label={`pedra ${result.roll}`}
-      className="flex h-[44px] w-[44px] items-center justify-center"
-    >
-      <StoneIcon roll={result.roll} size={44} />
-    </div>
-  );
+function pad2(v: number) {
+  return String(v).padStart(2, "0");
 }
 
 function Index() {
