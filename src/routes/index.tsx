@@ -58,6 +58,13 @@ type MinuteCol = {
   stones: DoubleRow[];
 };
 
+function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
+  const timeDiff =
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  if (timeDiff !== 0) return timeDiff;
+  return a.id - b.id;
+}
+
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
@@ -145,13 +152,13 @@ function Index() {
       .from("double_results")
       .select("*")
       .gte("created_at", sinceISO)
-      .order("created_at", { ascending: false })
-      .limit(2000);
+      .order("created_at", { ascending: true })
+      .range(0, 4000);
     if (error) {
       setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
       return;
     }
-    setResults((data ?? []) as DoubleRow[]);
+    setResults(((data ?? []) as DoubleRow[]).sort(compareByCreatedAtAsc));
   }
 
   // Sync client-side: o navegador (IP BR) busca da Jonbet a cada POLL_MS
@@ -192,11 +199,7 @@ function Index() {
           }
           setResults((prev) => {
             if (prev.some((r) => r.id === row.id)) return prev;
-            return [row, ...prev].sort(
-              (a, b) =>
-                new Date(b.created_at).getTime() -
-                new Date(a.created_at).getTime(),
-            );
+            return [...prev, row].sort(compareByCreatedAtAsc);
           });
         },
       )
@@ -302,16 +305,17 @@ function Index() {
 
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
   const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
+  const latestResult = results[results.length - 1] ?? null;
 
   // Countdown da próxima rodada — calculado a partir do created_at
   // da última pedra. Cada rodada na Jonbet dura ~ROUND_SECONDS.
   const nextRoundIn = useMemo(() => {
-    const last = results[0];
-    if (!last || !now) return 0;
-    const elapsed = (now.getTime() - new Date(last.created_at).getTime()) / 1000;
+    if (!latestResult || !now) return 0;
+    const elapsed =
+      (now.getTime() - new Date(latestResult.created_at).getTime()) / 1000;
     const remaining = Math.max(0, Math.ceil(ROUND_SECONDS - elapsed));
     return remaining;
-  }, [results, now]);
+  }, [latestResult, now]);
 
 
   return (
@@ -364,8 +368,8 @@ function Index() {
 
         {/* Roleta animada — gira ao receber novo resultado */}
         <SpinWheel
-          roll={results[0]?.roll ?? null}
-          resultId={results[0]?.game_id ?? null}
+          roll={latestResult?.roll ?? null}
+          resultId={latestResult?.game_id ?? null}
           status="waiting"
           countdown={nextRoundIn}
         />
@@ -390,14 +394,14 @@ function Index() {
         </div>
 
         {/* Badge: última pedra recebida (debug visível) */}
-        {results[0] && (
+        {latestResult && (
           <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs">
             <span className="text-emerald-300">Última pedra recebida</span>
             <span className="font-mono font-bold text-emerald-200">
-              {new Date(results[0].created_at).toLocaleTimeString("pt-BR", {
+              {new Date(latestResult.created_at).toLocaleTimeString("pt-BR", {
                 timeZone: "America/Sao_Paulo",
               })}{" "}
-              • roll {results[0].roll}
+              • roll {latestResult.roll}
             </span>
           </div>
         )}
