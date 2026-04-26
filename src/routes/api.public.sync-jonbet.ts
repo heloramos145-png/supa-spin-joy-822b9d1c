@@ -12,6 +12,77 @@ type ApiItem = {
   server_seed?: string;
 };
 
+async function solveCloudflareWithCapSolver(
+  url: string,
+  userAgent: string,
+): Promise<{ cookie: string; userAgent: string } | null> {
+  const apiKey = process.env.CAPSOLVER_API_KEY;
+  if (!apiKey) return null;
+
+  // Cria a task
+  const createRes = await fetch("https://api.capsolver.com/createTask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientKey: apiKey,
+      task: {
+        type: "AntiCloudflareTask",
+        websiteURL: url,
+        proxy: "", // CapSolver usa próprios IPs
+      },
+    }),
+  });
+  const createJson = (await createRes.json()) as {
+    errorId?: number;
+    errorDescription?: string;
+    taskId?: string;
+  };
+  if (createJson.errorId || !createJson.taskId) {
+    console.error("CapSolver createTask failed:", createJson.errorDescription);
+    return null;
+  }
+
+  // Polling até resolver (máx 60s)
+  const taskId = createJson.taskId;
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const pollRes = await fetch("https://api.capsolver.com/getTaskResult", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientKey: apiKey, taskId }),
+    });
+    const pollJson = (await pollRes.json()) as {
+      status?: string;
+      errorId?: number;
+      errorDescription?: string;
+      solution?: {
+        cookies?: Record<string, string> | Array<{ name: string; value: string }>;
+        userAgent?: string;
+      };
+    };
+    if (pollJson.errorId) {
+      console.error("CapSolver poll error:", pollJson.errorDescription);
+      return null;
+    }
+    if (pollJson.status === "ready" && pollJson.solution) {
+      const c = pollJson.solution.cookies;
+      let cookieStr = "";
+      if (Array.isArray(c)) {
+        cookieStr = c.map((k) => `${k.name}=${k.value}`).join("; ");
+      } else if (c && typeof c === "object") {
+        cookieStr = Object.entries(c)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("; ");
+      }
+      return {
+        cookie: cookieStr,
+        userAgent: pollJson.solution.userAgent || userAgent,
+      };
+    }
+  }
+  return null;
+}
+
 async function runSync() {
   const SUPABASE_URL = process.env.JONBET_SUPABASE_URL!;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.JONBET_SUPABASE_SERVICE_ROLE_KEY!;
