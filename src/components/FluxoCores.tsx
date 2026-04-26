@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
 
 export type FluxoStone = {
-  id: number;
+  id: string | number;
   roll: number;
   color: number; // 0=branco, 1=verde, 2=preto
   created_at: string;
