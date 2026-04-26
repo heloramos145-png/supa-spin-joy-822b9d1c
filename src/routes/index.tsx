@@ -443,16 +443,16 @@ function Index() {
           );
           const gridTemplate = `repeat(10, ${colW}px)`;
           return (
-            <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
+            <div className="overflow-x-auto rounded-md border border-[#1a2342] bg-[#0d1430] p-2">
               <div
-                className="sticky top-0 z-10 mb-1 grid gap-1 bg-slate-900/80 pb-1 backdrop-blur"
+                className="sticky top-0 z-10 mb-1 grid gap-1 bg-[#0d1430]/95 pb-2 backdrop-blur"
                 style={{ gridTemplateColumns: gridTemplate }}
               >
                 {COLS.map((c) => (
                   <div
                     key={c}
-                    className="flex h-7 items-center justify-center rounded bg-slate-800/70 font-bold text-slate-200"
-                    style={{ width: colW, fontSize: 14 }}
+                    className="flex h-8 items-center justify-center font-bold text-slate-200"
+                    style={{ width: colW, fontSize: 16 }}
                   >
                     {String(c).padStart(2, "0")}
                   </div>
