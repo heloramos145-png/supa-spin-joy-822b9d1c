@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import brancoIcon from "@/assets/branco-icon.png";
 
 // Ordem oficial das pedras na roleta da Jonbet Double (verde / preta / branca)
 const SLOT_NUMBERS = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8];
