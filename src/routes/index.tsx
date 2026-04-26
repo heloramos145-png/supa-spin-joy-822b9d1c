@@ -26,10 +26,23 @@ type DoubleRow = {
 };
 
 const POLL_MS = 3000;
+// Tempo médio de uma rodada da Jonbet Double (~37s + animação ~3s ≈ 40s).
+// O countdown é calculado a partir do created_at da última pedra.
+const ROUND_SECONDS = 40;
 
 // 6 row buckets: top = 50–00 (newest), bottom = 00–10 (oldest within hour)
 const ROW_BUCKETS = [50, 40, 30, 20, 10, 0] as const;
 const COLS = Array.from({ length: 10 }, (_, i) => i);
+
+// Início do dia atual em Brasília (UTC-3, sem horário de verão) em ISO UTC.
+function startOfBrasiliaDayISO(ref: Date = new Date()): string {
+  const brasiliaNowMs = ref.getTime() - 3 * 60 * 60 * 1000;
+  const b = new Date(brasiliaNowMs);
+  const startUtc = new Date(
+    Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate(), 3, 0, 0),
+  );
+  return startUtc.toISOString();
+}
 
 type Cell = {
   rowStart: number;
