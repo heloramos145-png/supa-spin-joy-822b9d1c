@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientJonbetSync, type ClientSyncState } from "@/hooks/useClientJonbetSync";
 import SpinWheel from "@/components/SpinWheel";
+import brancoIcon from "@/assets/branco-icon.jpeg";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -71,63 +72,41 @@ function Stone({ result }: { result: DoubleRow | null }) {
       <div className="h-[22px] w-[22px] rounded-[5px] border border-dashed border-slate-700/40" />
     );
   }
-  // Colors faithful to the provided icons
-  let fill = "#ffffff";
-  let stroke = "#2e7d32"; // green border for white
-  let textColor = "#111827";
-  if (result.color === 1) {
-    fill = "#7CFC6B"; // bright green
-    stroke = "#3b7a2b";
-    textColor = "#0b1a06";
-  } else if (result.color === 2) {
-    fill = "#1f1f1f"; // near black
-    stroke = "#3a3a3a";
-    textColor = "#ffffff";
-  }
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="100%"
-      height="100%"
-      preserveAspectRatio="xMidYMid meet"
-      className="block"
-      aria-label={`pedra ${result.roll}`}
-    >
-      <title>
-        {new Date(result.created_at).toLocaleTimeString("pt-BR")} • {result.roll}
-      </title>
-      <rect
-        x="1.5"
-        y="1.5"
-        width="21"
-        height="21"
-        rx="5"
-        ry="5"
-        fill={fill}
-        stroke={stroke}
-        strokeWidth="1.5"
-      />
-      <circle
-        cx="12"
-        cy="12"
-        r="6.5"
-        fill="none"
-        stroke={textColor}
-        strokeWidth="1.4"
-      />
-      <text
-        x="12"
-        y="12.5"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontFamily="ui-sans-serif, system-ui, sans-serif"
-        fontWeight="800"
-        fontSize="11"
-        fill={textColor}
+
+  const title = `${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`;
+
+  // Branco (color 0): mostra o ícone do "e" da Jonbet
+  if (result.color === 0) {
+    return (
+      <div
+        title={title}
+        aria-label={`pedra branco ${result.roll}`}
+        className="h-[22px] w-[22px] rounded-[5px] overflow-hidden border border-emerald-700 bg-white flex items-center justify-center"
       >
-        {result.roll}
-      </text>
-    </svg>
+        <img
+          src={brancoIcon}
+          alt=""
+          className="h-full w-full object-cover"
+          draggable={false}
+        />
+      </div>
+    );
+  }
+
+  // Verde (1) ou Preto (2)
+  const isGreen = result.color === 1;
+  const bg = isGreen ? "bg-[#1faa3e]" : "bg-[#1a1a1a]";
+  const border = isGreen ? "border-[#0f6e26]" : "border-[#3a3a3a]";
+
+  return (
+    <div
+      title={title}
+      aria-label={`pedra ${result.roll}`}
+      className={`h-[22px] w-[22px] rounded-[5px] border ${border} ${bg} text-white font-bold flex items-center justify-center leading-none`}
+      style={{ fontSize: "12px", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+    >
+      {result.roll}
+    </div>
   );
 }
 
