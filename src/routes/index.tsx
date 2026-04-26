@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
+import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
-import StoneIcon from "@/components/StoneIcon";
+import Slot from "@/components/Slot";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
