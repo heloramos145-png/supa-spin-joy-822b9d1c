@@ -15,19 +15,68 @@ function getStoneAsset(roll: number) {
   return stoneBlack;
 }
 
+function getNumberColor(roll: number) {
+  // branca (0): sem número (logo "e" no centro)
+  // verde (1-7) e preta (8-14): número branco
+  return "#ffffff";
+}
+
 export default function StoneIcon({
   roll,
   size,
   className,
   alt = "",
 }: StoneIconProps) {
+  const showNumber = roll !== 0;
+  // Tamanho da fonte proporcional, com peso forte pra ficar legível
+  const fontSize = Math.round(size * 0.42);
+
   return (
-    <img
-      src={getStoneAsset(roll)}
-      alt={alt}
-      draggable={false}
+    <div
       className={className}
-      style={{ width: size, height: size, objectFit: "contain" }}
-    />
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <img
+        src={getStoneAsset(roll)}
+        alt={alt}
+        draggable={false}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: "block",
+        }}
+      />
+      {showNumber && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: getNumberColor(roll),
+            fontWeight: 900,
+            fontSize,
+            lineHeight: 1,
+            fontFamily:
+              "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+            textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        >
+          {roll}
+        </span>
+      )}
+    </div>
   );
 }
