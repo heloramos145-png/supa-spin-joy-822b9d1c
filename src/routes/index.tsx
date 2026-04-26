@@ -70,43 +70,49 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="h-[22px] w-[22px] rounded-[5px] border border-dashed border-slate-700/40" />
+      <div className="h-[28px] w-[28px] rounded-[6px] border border-dashed border-slate-700/40" />
     );
   }
 
   const title = `${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`;
 
-  // Branco (color 0): mostra o ícone do "e" da Jonbet
+  // Branco (color 0): pedra branca com ícone de gota da Jonbet (estilo Tipminer)
   if (result.color === 0) {
     return (
       <div
         title={title}
         aria-label={`pedra branco ${result.roll}`}
-        className="h-[22px] w-[22px] rounded-[5px] overflow-hidden border border-emerald-700 bg-white flex items-center justify-center"
+        className="h-[28px] w-[28px] rounded-[6px] overflow-hidden bg-[#fff7e6] flex items-center justify-center ring-1 ring-amber-200/60"
       >
         <img
           src={brancoIcon}
           alt=""
-          className="h-full w-full object-cover"
+          className="h-[20px] w-[20px] object-contain"
           draggable={false}
         />
       </div>
     );
   }
 
-  // Verde (1) ou Preto (2)
-  const isGreen = result.color === 1;
-  const bg = isGreen ? "bg-[#1faa3e]" : "bg-[#1a1a1a]";
-  const border = isGreen ? "border-[#0f6e26]" : "border-[#3a3a3a]";
+  // Vermelho (1) ou Preto (2) — estilo Tipminer:
+  // tile arredondado colorido com círculo branco interno e número escuro
+  const isRed = result.color === 1;
+  const bg = isRed ? "bg-[#e54b6b]" : "bg-[#2a2f4a]";
 
   return (
     <div
       title={title}
       aria-label={`pedra ${result.roll}`}
-      className={`h-[22px] w-[22px] rounded-[5px] border ${border} ${bg} text-white font-bold flex items-center justify-center leading-none`}
-      style={{ fontSize: "12px", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+      className={`h-[28px] w-[28px] rounded-[6px] ${bg} flex items-center justify-center`}
     >
-      {result.roll}
+      <div className="h-[20px] w-[20px] rounded-full bg-white flex items-center justify-center">
+        <span
+          className="text-[12px] font-extrabold leading-none text-slate-900 tabular-nums"
+          style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+        >
+          {result.roll}
+        </span>
+      </div>
     </div>
   );
 }
