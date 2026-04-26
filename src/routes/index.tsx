@@ -342,28 +342,15 @@ function Index() {
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            {syncState.lastRunAt && (
-              <span className="text-slate-400">
-                Sync:{" "}
-                {new Date(syncState.lastRunAt).toLocaleTimeString("pt-BR")}
-              </span>
-            )}
             <span
               className={
-                syncState.status === "ok"
+                wsState.connected
                   ? "rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300"
-                  : syncState.status === "blocked"
-                  ? "rounded bg-amber-500/20 px-2 py-0.5 text-amber-300"
-                  : syncState.status === "error"
-                  ? "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
-                  : "rounded bg-slate-500/20 px-2 py-0.5 text-slate-300"
+                  : "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
               }
+              title="WebSocket Jonbet (browser)"
             >
-              {syncState.status === "ok"
-                ? "ao vivo"
-                : syncState.status === "blocked"
-                ? "bloqueado"
-                : syncState.status}
+              {wsState.connected ? "WS ao vivo" : "WS off"}
             </span>
           </div>
         </div>
