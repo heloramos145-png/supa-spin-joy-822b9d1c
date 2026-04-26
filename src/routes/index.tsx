@@ -70,43 +70,49 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
 function Stone({ result }: { result: DoubleRow | null }) {
   if (!result) {
     return (
-      <div className="h-[22px] w-[22px] rounded-[5px] border border-dashed border-slate-700/40" />
+      <div className="h-[28px] w-[28px] rounded-[6px] border border-dashed border-slate-700/40" />
     );
   }
 
   const title = `${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`;
 
-  // Branco (color 0): mostra o ícone do "e" da Jonbet
+  // Branco (color 0): pedra branca com ícone de gota da Jonbet (estilo Tipminer)
   if (result.color === 0) {
     return (
       <div
         title={title}
         aria-label={`pedra branco ${result.roll}`}
-        className="h-[22px] w-[22px] rounded-[5px] overflow-hidden border border-emerald-700 bg-white flex items-center justify-center"
+        className="h-[28px] w-[28px] rounded-[6px] overflow-hidden bg-[#fff7e6] flex items-center justify-center ring-1 ring-amber-200/60"
       >
         <img
           src={brancoIcon}
           alt=""
-          className="h-full w-full object-cover"
+          className="h-[20px] w-[20px] object-contain"
           draggable={false}
         />
       </div>
     );
   }
 
-  // Verde (1) ou Preto (2)
-  const isGreen = result.color === 1;
-  const bg = isGreen ? "bg-[#1faa3e]" : "bg-[#1a1a1a]";
-  const border = isGreen ? "border-[#0f6e26]" : "border-[#3a3a3a]";
+  // Vermelho (1) ou Preto (2) — estilo Tipminer:
+  // tile arredondado colorido com círculo branco interno e número escuro
+  const isRed = result.color === 1;
+  const bg = isRed ? "bg-[#e54b6b]" : "bg-[#2a2f4a]";
 
   return (
     <div
       title={title}
       aria-label={`pedra ${result.roll}`}
-      className={`h-[22px] w-[22px] rounded-[5px] border ${border} ${bg} text-white font-bold flex items-center justify-center leading-none`}
-      style={{ fontSize: "12px", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+      className={`h-[28px] w-[28px] rounded-[6px] ${bg} flex items-center justify-center`}
     >
-      {result.roll}
+      <div className="h-[20px] w-[20px] rounded-full bg-white flex items-center justify-center">
+        <span
+          className="text-[12px] font-extrabold leading-none text-slate-900 tabular-nums"
+          style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+        >
+          {result.roll}
+        </span>
+      </div>
     </div>
   );
 }
@@ -437,16 +443,16 @@ function Index() {
           );
           const gridTemplate = `repeat(10, ${colW}px)`;
           return (
-            <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-900/40 p-2">
+            <div className="overflow-x-auto rounded-md border border-[#1a2342] bg-[#0d1430] p-2">
               <div
-                className="sticky top-0 z-10 mb-1 grid gap-1 bg-slate-900/80 pb-1 backdrop-blur"
+                className="sticky top-0 z-10 mb-1 grid gap-1 bg-[#0d1430]/95 pb-2 backdrop-blur"
                 style={{ gridTemplateColumns: gridTemplate }}
               >
                 {COLS.map((c) => (
                   <div
                     key={c}
-                    className="flex h-7 items-center justify-center rounded bg-slate-800/70 font-bold text-slate-200"
-                    style={{ width: colW, fontSize: 14 }}
+                    className="flex h-8 items-center justify-center font-bold text-slate-200"
+                    style={{ width: colW, fontSize: 16 }}
                   >
                     {String(c).padStart(2, "0")}
                   </div>
@@ -464,12 +470,8 @@ function Index() {
                     return (
                       <div
                         key={cell.minuteStartUtc}
-                        className={`flex flex-col items-center justify-center rounded border ${
-                          hasData
-                            ? "border-slate-800/80 bg-slate-950/60"
-                            : "border-dashed border-slate-800/40 bg-slate-950/20"
-                        }`}
-                        style={{ width: colW, padding: PAD, minHeight: 48 }}
+                        className="flex flex-col items-center justify-center"
+                        style={{ width: colW, padding: PAD, minHeight: 52 }}
                       >
                         <div
                           className="flex flex-row items-center justify-center"
@@ -488,7 +490,7 @@ function Index() {
                         {hasData && (
                           <div
                             className="leading-none text-slate-400 tabular-nums"
-                            style={{ fontSize: 10, marginTop: 3 }}
+                            style={{ fontSize: 11, marginTop: 4 }}
                           >
                             {cell.label}
                           </div>
