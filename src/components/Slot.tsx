@@ -31,11 +31,11 @@ const Slot = forwardRef<HTMLDivElement, SlotProps>(
           </div>
         );
       }
-      if (isRed) {
+      if (isGreen) {
         return (
           <div
             className={`${outerSize} ${roundedOuter} flex items-center justify-center shadow-sm`}
-            style={{ backgroundColor: "#F12C4C" }}
+            style={{ backgroundColor: "#1B7F3A" }}
           >
             <div
               className={`${innerSize} rounded-full ${borderW} flex items-center justify-center font-bold ${numberStyle}`}
