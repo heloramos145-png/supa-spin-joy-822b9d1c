@@ -26,9 +26,8 @@ async function solveCloudflareWithCapSolver(
     body: JSON.stringify({
       clientKey: apiKey,
       task: {
-        type: "AntiCloudflareTask",
+        type: "AntiCloudflareTaskProxyLess",
         websiteURL: url,
-        proxy: "", // CapSolver usa próprios IPs
       },
     }),
   });
