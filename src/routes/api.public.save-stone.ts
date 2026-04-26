@@ -89,7 +89,7 @@ export const Route = createFileRoute("/api/public/save-stone")({
           await admin
             .from("double_results")
             .delete()
-            .lt("created_at", startToday);
+            .lt("rolled_at", startToday);
 
           return new Response(JSON.stringify({ ok: true }), {
             status: 200,
