@@ -188,7 +188,17 @@ function Index() {
   }, []);
 
   useEffect(() => {
-    void fetchResults();
+    // Catch-up: ao abrir o site, pede pro servidor buscar pedras recentes
+    // da Jonbet (REST) e salvar no banco. Isso preenche o "buraco" caso
+    // ninguém estivesse com a aba aberta. Depois recarrega do banco.
+    (async () => {
+      try {
+        await fetch("/api/public/sync-jonbet", { method: "POST" });
+      } catch {
+        // ignora — se falhar, o fetchResults abaixo ainda mostra o que tem
+      }
+      void fetchResults();
+    })();
 
     // Realtime: insere pedras na hora que chegam no banco (se publicação estiver habilitada)
     const channel = supabase
