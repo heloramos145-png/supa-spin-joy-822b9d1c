@@ -30,7 +30,9 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
       }
       const data = (await res.json()) as unknown;
       if (Array.isArray(data)) {
-        items = data as ApiItem[];
+        items = (data as ApiItem[]).sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
       } else {
         return { ok: false, inserted: 0, error: "Unexpected API shape" };
       }
