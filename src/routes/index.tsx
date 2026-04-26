@@ -359,21 +359,7 @@ function Index() {
               <span className="text-white">FLUXO</span>
               <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">JON</span>
             </h1>
-            <p className="text-xs text-slate-400">
-              Atualiza a cada {POLL_MS / 1000}s • {results.length} rodadas
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span
-              className={
-                wsState.connected
-                  ? "rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300"
-                  : "rounded bg-rose-500/20 px-2 py-0.5 text-rose-300"
-              }
-              title="WebSocket Jonbet (browser)"
-            >
-              {wsState.connected ? "WS ao vivo" : "WS off"}
-            </span>
+            <p className="text-xs text-slate-400">{results.length} rodadas hoje</p>
           </div>
         </div>
       </header>

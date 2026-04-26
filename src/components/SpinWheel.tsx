@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import brancoIcon from "@/assets/branco-icon.png";
 
 // Ordem oficial das pedras na roleta da Jonbet Double (verde / preta / branca)
 const SLOT_NUMBERS = [1, 14, 2, 13, 3, 12, 4, 0, 11, 5, 10, 6, 9, 7, 8];
@@ -144,16 +145,29 @@ export default function SpinWheel({
           fontSize: Math.round(size * 0.4),
         }}
       >
-        <div
-          className="flex items-center justify-center rounded-full"
-          style={{
-            width: size * 0.72,
-            height: size * 0.72,
-            border: `2px solid ${isWhite ? "#111827" : "#ffffff"}`,
-          }}
-        >
-          {num}
-        </div>
+        {isWhite ? (
+          <img
+            src={brancoIcon}
+            alt=""
+            draggable={false}
+            style={{
+              width: size * 0.72,
+              height: size * 0.72,
+              objectFit: "contain",
+            }}
+          />
+        ) : (
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: size * 0.72,
+              height: size * 0.72,
+              border: `2px solid #ffffff`,
+            }}
+          >
+            {num}
+          </div>
+        )}
       </div>
     );
 
