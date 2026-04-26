@@ -182,6 +182,10 @@ function Index() {
         { event: "INSERT", schema: "public", table: "double_results" },
         (payload) => {
           const row = payload.new as DoubleRow;
+          // Descarta pedras anteriores ao início do dia em Brasília
+          if (new Date(row.created_at).getTime() < new Date(startOfBrasiliaDayISO()).getTime()) {
+            return;
+          }
           setResults((prev) => {
             if (prev.some((r) => r.id === row.id)) return prev;
             return [row, ...prev].sort(
