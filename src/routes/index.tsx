@@ -133,7 +133,11 @@ function Index() {
     lastError: null,
     lastRunAt: null,
   });
-  const [now, setNow] = useState(() => new Date());
+  // now começa em 0 no SSR e só vira Date no cliente — evita hydration mismatch
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
