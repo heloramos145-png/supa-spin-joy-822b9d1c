@@ -122,9 +122,22 @@ function Index() {
   });
   // now começa em 0 no SSR e só vira Date no cliente — evita hydration mismatch
   const [now, setNow] = useState<Date | null>(null);
+  const [livePreview, setLivePreview] = useState<LivePayload | null>(null);
   useEffect(() => {
     setNow(new Date());
   }, []);
+
+  // WebSocket direto na Jonbet (browser) — antecipa a pedra (status "rolling")
+  // e salva a final (status "complete") no Supabase. Só roda com a aba aberta.
+  const wsState = useJonbetWebSocket((payload) => {
+    setLivePreview(payload);
+    if (payload.status === "complete") {
+      // limpa preview após a pedra final ser confirmada
+      setTimeout(() => {
+        setLivePreview((cur) => (cur?.id === payload.id ? null : cur));
+      }, 1500);
+    }
+  });
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
