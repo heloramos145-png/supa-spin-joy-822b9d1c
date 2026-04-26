@@ -42,7 +42,9 @@ async function runSync() {
   if (!Array.isArray(data)) {
     return { ok: false, inserted: 0, error: "Unexpected API shape" };
   }
-  const items = data as ApiItem[];
+  const items = (data as ApiItem[]).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
 
   const rows = items
     .filter(
