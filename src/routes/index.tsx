@@ -5,7 +5,7 @@ import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
-import brancoIcon from "@/assets/branco-icon.png";
+import StoneIcon from "@/components/StoneIcon";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -118,48 +118,13 @@ function Stone({ result }: { result: DoubleRow | null }) {
 
   const title = `${new Date(result.created_at).toLocaleTimeString("pt-BR")} • ${result.roll}`;
 
-  // Branco (color 0): tile branco com a gota verde "e" da Jonbet
-  if (result.color === 0) {
-    return (
-      <div
-        title={title}
-        aria-label={`pedra branco ${result.roll}`}
-        className="h-[44px] w-[44px] rounded-[10px] overflow-hidden bg-white flex items-center justify-center ring-2 ring-[#2e8b3e]"
-      >
-        <img
-          src={brancoIcon}
-          alt=""
-          className="h-[32px] w-[32px] object-contain"
-          draggable={false}
-        />
-      </div>
-    );
-  }
-
-  // Verde Jonbet (1–7): tile verde claro, número preto dentro de círculo aro preto
-  // Preto Jonbet (8–14): tile preto, número branco dentro de círculo aro branco
-  const isGreen = result.color === 1;
-  const tileBg = isGreen ? "bg-[#7cfa60]" : "bg-[#1f1f1f]";
-  const tileRing = isGreen ? "ring-[#3aa334]" : "ring-[#3a3a3a]";
-  const ringColor = isGreen ? "border-black" : "border-white";
-  const numColor = isGreen ? "text-black" : "text-white";
-
   return (
     <div
       title={title}
       aria-label={`pedra ${result.roll}`}
-      className={`h-[44px] w-[44px] rounded-[10px] ${tileBg} ring-2 ${tileRing} flex items-center justify-center`}
+      className="flex h-[44px] w-[44px] items-center justify-center"
     >
-      <div
-        className={`h-[32px] w-[32px] rounded-full border-[2.5px] ${ringColor} flex items-center justify-center bg-transparent`}
-      >
-        <span
-          className={`text-[15px] font-extrabold leading-none ${numColor} tabular-nums`}
-          style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
-        >
-          {result.roll}
-        </span>
-      </div>
+      <StoneIcon roll={result.roll} size={44} />
     </div>
   );
 }
