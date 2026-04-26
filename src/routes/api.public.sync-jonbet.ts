@@ -12,6 +12,27 @@ type ApiItem = {
   server_seed?: string;
 };
 
+function rollToColorText(roll: number): string {
+  if (roll === 0) return "white";
+  if (roll >= 1 && roll <= 7) return "red";
+  return "black";
+}
+
+function toBrasiliaMinuteKey(d: Date): string {
+  const f = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = f.formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
 async function runSync() {
   const SUPABASE_URL = process.env.JONBET_SUPABASE_URL!;
   const SUPABASE_SERVICE_ROLE_KEY = process.env.JONBET_SUPABASE_SERVICE_ROLE_KEY!;
@@ -46,23 +67,25 @@ async function runSync() {
       (it) =>
         typeof it?.id === "string" &&
         typeof it?.roll === "number" &&
-        typeof it?.color === "number" &&
         typeof it?.created_at === "string",
     )
-    .map((it) => ({
-      game_id: it.id,
-      roll: it.roll,
-      color: it.color,
-      created_at: it.created_at,
-      raw: it as unknown,
-    }));
+    .map((it) => {
+      const rolledAt = new Date(it.created_at);
+      return {
+        jonbet_game_id: it.id,
+        number: it.roll,
+        color: rollToColorText(it.roll),
+        rolled_at: rolledAt.toISOString(),
+        minute_key: toBrasiliaMinuteKey(rolledAt),
+      };
+    });
 
   if (rows.length === 0) return { ok: true, inserted: 0, note: "no rows" };
 
   const { error, count } = await admin
     .from("double_results")
     .upsert(rows, {
-      onConflict: "game_id",
+      onConflict: "jonbet_game_id",
       count: "exact",
       ignoreDuplicates: true,
     });
@@ -79,7 +102,7 @@ async function runSync() {
   await admin
     .from("double_results")
     .delete()
-    .lt("created_at", startOfDayBrasiliaUtc.toISOString());
+    .lt("rolled_at", startOfDayBrasiliaUtc.toISOString());
 
   return { ok: true, inserted: count ?? rows.length };
 }

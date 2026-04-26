@@ -12,6 +12,27 @@ type ApiItem = {
   server_seed?: string;
 };
 
+function rollToColorText(roll: number): string {
+  if (roll === 0) return "white";
+  if (roll >= 1 && roll <= 7) return "red";
+  return "black";
+}
+
+function toBrasiliaMinuteKey(d: Date): string {
+  const f = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = f.formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
 export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
   async () => {
     let items: ApiItem[] = [];
@@ -67,16 +88,18 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
         (it) =>
           typeof it?.id === "string" &&
           typeof it?.roll === "number" &&
-          typeof it?.color === "number" &&
           typeof it?.created_at === "string",
       )
-      .map((it) => ({
-        game_id: it.id,
-        roll: it.roll,
-        color: it.color,
-        created_at: it.created_at,
-        raw: it as unknown,
-      }));
+      .map((it) => {
+        const rolledAt = new Date(it.created_at);
+        return {
+          jonbet_game_id: it.id,
+          number: it.roll,
+          color: rollToColorText(it.roll),
+          rolled_at: rolledAt.toISOString(),
+          minute_key: toBrasiliaMinuteKey(rolledAt),
+        };
+      });
 
     if (rows.length === 0) {
       return { ok: true, inserted: 0, note: "no rows in payload" };
@@ -85,7 +108,7 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
     const { error, count } = await supabaseAdmin
       .from("double_results")
       .upsert(rows, {
-        onConflict: "game_id",
+        onConflict: "jonbet_game_id",
         count: "exact",
         ignoreDuplicates: true,
       });
@@ -95,9 +118,7 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
     }
 
     // Manter apenas as pedras do dia atual em Brasília (UTC-3).
-    // Ao virar 00:00 em Brasília, tudo do dia anterior é apagado.
     const now = new Date();
-    // Início do dia atual em Brasília = 03:00 UTC do mesmo dia civil em SP.
     const brasiliaNowUtcMs = now.getTime() - 3 * 60 * 60 * 1000;
     const b = new Date(brasiliaNowUtcMs);
     const startOfDayBrasiliaUtc = new Date(
@@ -107,7 +128,7 @@ export const syncJonbetDouble = createServerFn({ method: "POST" }).handler(
     await supabaseAdmin
       .from("double_results")
       .delete()
-      .lt("created_at", startOfDayBrasiliaUtc.toISOString());
+      .lt("rolled_at", startOfDayBrasiliaUtc.toISOString());
 
     return { ok: true, inserted: count ?? rows.length };
   },
