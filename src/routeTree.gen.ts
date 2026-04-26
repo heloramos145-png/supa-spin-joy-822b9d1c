@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicSyncJonbetRouteImport } from './routes/api.public.sync-jonbet'
+import { Route as ApiPublicSaveStoneRouteImport } from './routes/api.public.save-stone'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +23,39 @@ const ApiPublicSyncJonbetRoute = ApiPublicSyncJonbetRouteImport.update({
   path: '/api/public/sync-jonbet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSaveStoneRoute = ApiPublicSaveStoneRouteImport.update({
+  id: '/api/public/save-stone',
+  path: '/api/public/save-stone',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/save-stone': typeof ApiPublicSaveStoneRoute
   '/api/public/sync-jonbet': typeof ApiPublicSyncJonbetRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/save-stone': typeof ApiPublicSaveStoneRoute
   '/api/public/sync-jonbet': typeof ApiPublicSyncJonbetRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/save-stone': typeof ApiPublicSaveStoneRoute
   '/api/public/sync-jonbet': typeof ApiPublicSyncJonbetRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/sync-jonbet'
+  fullPaths: '/' | '/api/public/save-stone' | '/api/public/sync-jonbet'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/sync-jonbet'
-  id: '__root__' | '/' | '/api/public/sync-jonbet'
+  to: '/' | '/api/public/save-stone' | '/api/public/sync-jonbet'
+  id: '__root__' | '/' | '/api/public/save-stone' | '/api/public/sync-jonbet'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicSaveStoneRoute: typeof ApiPublicSaveStoneRoute
   ApiPublicSyncJonbetRoute: typeof ApiPublicSyncJonbetRoute
 }
 
@@ -65,11 +75,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSyncJonbetRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/save-stone': {
+      id: '/api/public/save-stone'
+      path: '/api/public/save-stone'
+      fullPath: '/api/public/save-stone'
+      preLoaderRoute: typeof ApiPublicSaveStoneRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicSaveStoneRoute: ApiPublicSaveStoneRoute,
   ApiPublicSyncJonbetRoute: ApiPublicSyncJonbetRoute,
 }
 export const routeTree = rootRouteImport

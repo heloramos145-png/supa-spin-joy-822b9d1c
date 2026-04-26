@@ -471,7 +471,6 @@ function Index() {
                   style={{ gridTemplateColumns: gridTemplate }}
                 >
                   {row.map((cell) => {
-                    const hasData = cell.stones.length > 0;
                     return (
                       <div
                         key={cell.minuteStartUtc}
@@ -479,27 +478,41 @@ function Index() {
                         style={{ width: colW, padding: PAD, minHeight: 52 }}
                       >
                         <div
-                          className="flex flex-row items-center justify-center"
+                          className="flex flex-row items-start justify-center"
                           style={{ gap: STONE_GAP }}
                         >
-                          {cell.stones.map((s) => (
-                            <div
-                              key={s.id}
-                              style={{ width: STONE_W, height: STONE_W }}
-                              className="flex items-center justify-center"
-                            >
-                              <Stone result={s} />
-                            </div>
-                          ))}
+                          {cell.stones.map((s) => {
+                            const hhmm = new Intl.DateTimeFormat("pt-BR", {
+                              timeZone: "America/Sao_Paulo",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            }).format(new Date(s.created_at));
+                            return (
+                              <div
+                                key={s.id}
+                                className="flex flex-col items-center"
+                                style={{ width: STONE_W }}
+                              >
+                                <div
+                                  style={{ width: STONE_W, height: STONE_W }}
+                                  className="flex items-center justify-center"
+                                >
+                                  <Stone result={s} />
+                                </div>
+                                <div
+                                  className="mt-1 rounded-[3px] bg-slate-700/80 text-slate-100 tabular-nums font-semibold leading-none"
+                                  style={{
+                                    fontSize: 10,
+                                    padding: "2px 4px",
+                                  }}
+                                >
+                                  {hhmm}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        {hasData && (
-                          <div
-                            className="leading-none text-slate-400 tabular-nums"
-                            style={{ fontSize: 11, marginTop: 4 }}
-                          >
-                            {cell.label}
-                          </div>
-                        )}
                       </div>
                     );
                   })}

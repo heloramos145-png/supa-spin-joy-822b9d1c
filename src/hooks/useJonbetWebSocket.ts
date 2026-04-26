@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 const WS_URL =
   "wss://api-gaming.jonbet.bet.br/replication/?EIO=3&transport=websocket";
@@ -49,16 +48,20 @@ export function useJonbetWebSocket(
       if (lastSavedId === p.id) return;
       lastSavedId = p.id;
       try {
-        await supabase.from("double_results").upsert(
-          {
-            game_id: p.id,
+        const res = await fetch("/api/public/save-stone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: p.id,
             roll: p.roll,
             color: p.color,
             created_at: p.created_at ?? new Date().toISOString(),
-            raw: p as unknown as Record<string, unknown>,
-          },
-          { onConflict: "game_id", ignoreDuplicates: true },
-        );
+          }),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          console.warn("[ws] save-stone falhou:", res.status, txt);
+        }
       } catch (err) {
         console.warn("[ws] erro ao salvar pedra:", err);
       }
