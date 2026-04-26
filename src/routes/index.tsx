@@ -39,11 +39,10 @@ type DoubleRow = {
   created_at: string;
 };
 
-function normalizeColor(color: RawDoubleRow["color"], roll: number): number {
-  if (typeof color === "number") return color;
-  if (color === "white") return 0;
-  if (color === "red") return 1;
-  if (color === "black") return 2;
+// Regra fixa Jonbet Double: 0 = branco, 1–7 = verde, 8–14 = preto.
+// A cor é SEMPRE derivada do número (ignora o que veio salvo, que pode estar
+// no esquema antigo da Blaze onde 1 significava vermelho).
+function normalizeColor(_color: RawDoubleRow["color"], roll: number): number {
   if (roll === 0) return 0;
   return roll <= 7 ? 1 : 2;
 }
