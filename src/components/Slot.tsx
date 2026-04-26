@@ -11,7 +11,7 @@ interface SlotProps {
 
 const Slot = forwardRef<HTMLDivElement, SlotProps>(
   ({ number, color, size = "sm", timeLabel, onClick }, ref) => {
-    const isRed = color === "red";
+    const isGreen = color === "green";
     const isWhite = color === "white";
 
     const outerSize = size === "sm" ? "w-9 h-9" : "w-11 h-11";
