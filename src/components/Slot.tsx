@@ -2,7 +2,7 @@ import { forwardRef } from "react";
 
 interface SlotProps {
   number: number;
-  /** "white" | "red" | "black" — se vier qualquer outra coisa, trata como black */
+  /** "white" | "green" | "black" — qualquer outra coisa cai em black */
   color: string;
   size?: "sm" | "md";
   timeLabel?: string;
