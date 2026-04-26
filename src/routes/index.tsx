@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import SpinWheel from "@/components/SpinWheel";
-import brancoIcon from "@/assets/branco-icon.jpeg";
+import brancoIcon from "@/assets/branco-icon.png";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
