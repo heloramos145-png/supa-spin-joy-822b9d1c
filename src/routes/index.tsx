@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useClientJonbetSync, type ClientSyncState } from "@/hooks/useClientJonbetSync";
 import SpinWheel from "@/components/SpinWheel";
+import brancoIcon from "@/assets/branco-icon.jpeg";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
