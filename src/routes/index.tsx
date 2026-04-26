@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import SpinWheel from "@/components/SpinWheel";
+import FluxoCores from "@/components/FluxoCores";
 import brancoIcon from "@/assets/branco-icon.png";
 export const Route = createFileRoute("/")({
   component: Index,
@@ -429,8 +430,9 @@ function Index() {
           </div>
         )}
 
-        {/* Grade contínua: 10 colunas, pedras do mesmo minuto lado a lado */}
-        {(() => {
+        {/* Grade contínua + painel Fluxo Jon Cores lado a lado em telas grandes */}
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_280px]">
+          {(() => {
           // Largura por pedra e largura da coluna (proporcional ao máximo global de pedras por minuto)
           const STONE_W = 44;
           const STONE_GAP = 5;
@@ -518,6 +520,9 @@ function Index() {
             </div>
           );
         })()}
+
+          <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
+        </div>
 
         {loading && (
           <p className="text-center text-sm text-slate-400">Carregando…</p>
