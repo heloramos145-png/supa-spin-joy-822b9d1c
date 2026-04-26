@@ -456,80 +456,199 @@ function Index() {
           </div>
         )}
 
-        {/* Grade contínua: 10 colunas + painel Fluxo Jon Cores grudado ao lado da coluna 9 */}
+        {/* Histórico — 10 colunas fixas (00..09), 2 pedras por minuto, mín 6 linhas */}
         {(() => {
-          const COL_W = 46;
-          const GRID_GAP = 2;
-          const CELL_H = 108;
+          const displayCols = 10;
+          const stonesPerMinute = STONES_PER_MINUTE;
+          const cellWidthClass = isMobile ? "w-[86px]" : "w-[92px]";
+          const gridMinWidthClass = isMobile ? "min-w-[912px]" : "min-w-[972px]";
           const FLUXO_W = 280;
+
+          // Monta minuteRows direto a partir de `results` no formato da spec
+          const rowsForGrid = (() => {
+            if (results.length === 0) {
+              // sem dados ainda: cria 6 linhas vazias ancoradas no minuto atual de Brasília
+              const ref = now ?? new Date();
+              const brasiliaMs = ref.getTime() - 3 * 60 * 60 * 1000;
+              const minuteStartMs = Math.floor(brasiliaMs / 60000) * 60000;
+              const anchor = new Date(
+                minuteStartMs - (new Date(minuteStartMs).getUTCMinutes() % 10) * 60000,
+              );
+              return Array.from({ length: 6 }, (_, rowIdx) => {
+                const rowStart = new Date(anchor);
+                rowStart.setUTCMinutes(anchor.getUTCMinutes() - rowIdx * 10);
+                return {
+                  rowKey: `empty-${rowIdx}`,
+                  cells: Array.from({ length: displayCols }, (_, col) => {
+                    const md = new Date(rowStart);
+                    md.setUTCMinutes(rowStart.getUTCMinutes() + col);
+                    return {
+                      key: `${rowIdx}-${col}`,
+                      timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
+                      items: [] as DoubleRow[],
+                    };
+                  }),
+                };
+              });
+            }
+
+            // Em Brasília (UTC-3): cada pedra ganha um minute_key "YYYY-MM-DD HH:MM"
+            const toBrasilia = (iso: string) =>
+              new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
+            const minuteKeyOf = (iso: string) => {
+              const d = toBrasilia(iso);
+              return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+            };
+
+            const byMinute = new Map<string, DoubleRow[]>();
+            for (const r of results) {
+              const k = minuteKeyOf(r.created_at);
+              const list = byMinute.get(k) ?? [];
+              list.push(r);
+              byMinute.set(k, list);
+            }
+            for (const list of byMinute.values()) {
+              list.sort(
+                (a, b) =>
+                  new Date(a.created_at).getTime() -
+                  new Date(b.created_at).getTime(),
+              );
+            }
+
+            // Mais novo (results já está asc, então pega o último)
+            const newest = toBrasilia(results[results.length - 1].created_at);
+            const oldest = toBrasilia(results[0].created_at);
+
+            const anchorRowStart = new Date(
+              Date.UTC(
+                newest.getUTCFullYear(),
+                newest.getUTCMonth(),
+                newest.getUTCDate(),
+                newest.getUTCHours(),
+                Math.floor(newest.getUTCMinutes() / 10) * 10,
+              ),
+            );
+            const oldestRowStart = new Date(
+              Date.UTC(
+                oldest.getUTCFullYear(),
+                oldest.getUTCMonth(),
+                oldest.getUTCDate(),
+                oldest.getUTCHours(),
+                Math.floor(oldest.getUTCMinutes() / 10) * 10,
+              ),
+            );
+
+            const rowCount = Math.max(
+              6,
+              Math.ceil(
+                (anchorRowStart.getTime() - oldestRowStart.getTime()) /
+                  (10 * 60 * 1000),
+              ) + 1,
+            );
+
+            return Array.from({ length: rowCount }, (_, rowIdx) => {
+              const rowStart = new Date(anchorRowStart);
+              rowStart.setUTCMinutes(anchorRowStart.getUTCMinutes() - rowIdx * 10);
+              return {
+                rowKey: `${rowStart.getTime()}`,
+                cells: Array.from({ length: displayCols }, (_, col) => {
+                  const md = new Date(rowStart);
+                  md.setUTCMinutes(rowStart.getUTCMinutes() + col);
+                  const key = `${md.getUTCFullYear()}-${pad2(md.getUTCMonth() + 1)}-${pad2(md.getUTCDate())} ${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`;
+                  return {
+                    key,
+                    timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
+                    items: (byMinute.get(key) ?? []).slice(0, stonesPerMinute),
+                  };
+                }),
+              };
+            });
+          })();
+
+          const renderEmptyStone = (key: string, timeLabel: string) => (
+            <div key={key} className="flex flex-col items-center gap-0.5">
+              <div className="h-8 w-8 rounded-full border border-white/20 bg-white/5" />
+              <span className="text-[9px] font-bold text-white/70 tracking-wider bg-white/10 px-1.5 py-0.5 rounded-sm">
+                {timeLabel}
+              </span>
+            </div>
+          );
+
+          const todayLabel = new Date().toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          });
+
           return (
-            <div className="overflow-x-auto rounded-md border border-slate-800 bg-slate-950/80 p-2">
+            <div className="overflow-x-auto">
               <div className="flex items-start gap-2">
-                {/* Coluna do histórico (10 colunas de minuto) */}
-                <div style={{ width: COL_W * 10 + GRID_GAP * 9 }}>
+                <div
+                  className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
+                >
+                  {/* Barra de data */}
                   <div
-                    className="sticky top-0 z-10 mb-1 grid bg-slate-950/95 pb-2 backdrop-blur"
-                    style={{
-                      gridTemplateColumns: `repeat(10, ${COL_W}px)`,
-                      columnGap: GRID_GAP,
-                    }}
+                    className="flex items-center justify-center px-3 py-2"
+                    style={{ background: "linear-gradient(135deg, #0277bd, #01579b)" }}
                   >
-                    {COLS.map((c) => (
+                    <span className="text-[15px] font-bold text-white tabular-nums tracking-wider">
+                      {todayLabel}
+                    </span>
+                  </div>
+
+                  {/* Header das colunas (00..09) */}
+                  <div className="flex border-b-2 border-white/20 bg-white/10">
+                    {Array.from({ length: displayCols }, (_, i) => (
                       <div
-                        key={c}
-                        className="flex h-7 items-center justify-center font-bold text-slate-200"
-                        style={{ width: COL_W, fontSize: 15 }}
+                        key={i}
+                        className={`${cellWidthClass} flex-shrink-0 ${i > 0 ? "border-l border-white/20" : ""} py-3 text-center`}
                       >
-                        {String(c).padStart(2, "0")}
+                        <span className="text-[11px] font-bold text-white tracking-wider">
+                          {pad2(i)}
+                        </span>
                       </div>
                     ))}
                   </div>
 
-                  {minuteRows.map((row, rIdx) => (
-                    <div
-                      key={rIdx}
-                      className="grid pb-1"
-                      style={{
-                        gridTemplateColumns: `repeat(10, ${COL_W}px)`,
-                        columnGap: GRID_GAP,
-                      }}
-                    >
-                      {row.map((cell) => {
-                        const stones = cell.stones.slice(-STONES_PER_MINUTE).reverse();
-                        const stone = stones[0] ?? null;
-                        const hhmm = stone
-                          ? new Intl.DateTimeFormat("pt-BR", {
-                              timeZone: "America/Sao_Paulo",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: false,
-                            }).format(new Date(stone.created_at))
-                          : cell.label;
-
-                        return (
+                  {/* Linhas */}
+                  <div>
+                    {rowsForGrid.map((row, rowIdx) => (
+                      <div
+                        key={row.rowKey}
+                        className={`flex border-b border-white/10 ${rowIdx === 0 ? "bg-red-500/5" : "hover:bg-red-500/5"}`}
+                      >
+                        {row.cells.map((cell) => (
                           <div
-                            key={cell.minuteStartUtc}
-                            className="flex flex-col items-center justify-start"
-                            style={{ width: COL_W, minHeight: CELL_H }}
+                            key={cell.key}
+                            className={`${cellWidthClass} flex-shrink-0 border-l border-white/10 px-1 py-2 overflow-hidden`}
                           >
-                            <div className="flex flex-col items-center gap-[2px]">
-                              <Stone result={stones[0] ?? null} />
-                              <Stone result={stones[1] ?? null} />
-                            </div>
-                            <div
-                              className="mt-1 rounded-[3px] bg-slate-700/80 text-slate-100 tabular-nums font-semibold leading-none"
-                              style={{ fontSize: 10, padding: "2px 4px" }}
-                            >
-                              {hhmm}
+                            <div className="flex items-start justify-center gap-0.5">
+                              {Array.from({ length: stonesPerMinute }, (_, stoneIdx) => {
+                                const stone = cell.items[stoneIdx];
+                                return stone ? (
+                                  <Slot
+                                    key={`${cell.key}-${stone.id}`}
+                                    number={stone.roll}
+                                    color={colorName(stone.roll)}
+                                    size="sm"
+                                    timeLabel={cell.timeLabel}
+                                  />
+                                ) : (
+                                  renderEmptyStone(
+                                    `${cell.key}-empty-${stoneIdx}`,
+                                    cell.timeLabel,
+                                  )
+                                );
+                              })}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Painel Fluxo Jon Cores — ao lado da coluna 9 */}
+                {/* Painel Fluxo Jon Cores */}
                 <div style={{ width: FLUXO_W, flexShrink: 0 }}>
                   <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
                 </div>
@@ -537,6 +656,7 @@ function Index() {
             </div>
           );
         })()}
+
 
         {loading && (
           <p className="text-center text-sm text-slate-400">Carregando…</p>
