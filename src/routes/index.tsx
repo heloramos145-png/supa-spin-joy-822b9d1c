@@ -363,7 +363,7 @@ function Index() {
           roll={results[0]?.roll ?? null}
           resultId={results[0]?.game_id ?? null}
           status="waiting"
-          countdown={Number(brasiliaParts.second) > 0 ? 60 - Number(brasiliaParts.second) : 0}
+          countdown={nextRoundIn}
         />
 
         {/* Relógio de Brasília — compacto, acima do gráfico */}
