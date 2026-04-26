@@ -54,21 +54,32 @@ export const Route = createFileRoute("/api/public/save-stone")({
 
           const admin = getAdmin();
 
+          const rolledAt = body.created_at ?? new Date().toISOString();
+          // minute_key no fuso de Brasília (UTC-3): "YYYY-MM-DD HH:MM"
+          const brTime = new Date(new Date(rolledAt).getTime() - 3 * 60 * 60 * 1000);
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const minuteKey = `${brTime.getUTCFullYear()}-${pad(brTime.getUTCMonth() + 1)}-${pad(brTime.getUTCDate())} ${pad(brTime.getUTCHours())}:${pad(brTime.getUTCMinutes())}`;
+
+          // color vem como número (0=white, 1=red, 2=black). Converte pra texto.
+          const colorText =
+            body.color === 0 ? "white" : body.color === 1 ? "red" : "black";
+
           const row = {
-            game_id: body.id,
-            roll: body.roll,
-            color: body.color,
-            created_at: body.created_at ?? new Date().toISOString(),
-            raw: body as unknown as Record<string, unknown>,
+            jonbet_game_id: body.id,
+            number: body.roll,
+            color: colorText,
+            rolled_at: rolledAt,
+            minute_key: minuteKey,
           };
 
           const { error } = await admin
             .from("double_results")
-            .upsert(row, { onConflict: "game_id", ignoreDuplicates: true });
+            .upsert(row, { onConflict: "jonbet_game_id", ignoreDuplicates: true });
 
           if (error) {
+            console.error("[save-stone] upsert error:", error.message, "row:", row);
             return new Response(
-              JSON.stringify({ ok: false, error: error.message }),
+              JSON.stringify({ ok: false, error: error.message, row }),
               { status: 500, headers: corsHeaders },
             );
           }
