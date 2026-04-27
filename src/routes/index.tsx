@@ -417,6 +417,12 @@ function Index() {
   }, [now]);
 
 
+  // Não renderiza nada até a auth ser confirmada — evita o flash do site
+  // antes de redirecionar pro /login.
+  if (authChecked !== true) {
+    return <div className="min-h-screen bg-slate-950" />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-emerald-500/30 bg-gradient-to-r from-slate-950 via-emerald-950/40 to-slate-950">
