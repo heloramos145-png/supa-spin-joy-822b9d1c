@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { jonbetSupabase as supabase } from "@/integrations/supabase/jonbet";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
-import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
+import { useJonbetWebSocket } from "@/hooks/useJonbetWebSocket";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
@@ -107,6 +107,15 @@ type MinuteCol = {
   stones: DoubleRow[];
 };
 
+type GridRow = {
+  rowKey: string;
+  cells: Array<{
+    key: string;
+    timeLabel: string;
+    items: DoubleRow[];
+  }>;
+};
+
 function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   const timeDiff =
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -163,7 +172,6 @@ function Index() {
   });
   // now começa em 0 no SSR e só vira Date no cliente — evita hydration mismatch
   const [now, setNow] = useState<Date | null>(null);
-  const [livePreview, setLivePreview] = useState<LivePayload | null>(null);
   useEffect(() => {
     setNow(new Date());
     // Checagem síncrona da sessão no client — sem dynamic import (que adiciona
@@ -186,15 +194,7 @@ function Index() {
 
   // WebSocket direto na Jonbet (browser) — antecipa a pedra (status "rolling")
   // e salva a final (status "complete") no Supabase. Só roda com a aba aberta.
-  const wsState = useJonbetWebSocket((payload) => {
-    setLivePreview(payload);
-    if (payload.status === "complete") {
-      // limpa preview após a pedra final ser confirmada
-      setTimeout(() => {
-        setLivePreview((cur) => (cur?.id === payload.id ? null : cur));
-      }, 1500);
-    }
-  });
+  useJonbetWebSocket(() => {});
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
@@ -333,69 +333,7 @@ function Index() {
     };
   }, [now]);
 
-  // Linhas alinhadas: cada linha = dezena de minutos (HH:M0..HH:M9 em Brasília),
-  // cada coluna 0..9 = dígito do minuto. Cada pedra é uma célula independente
-  // empilhada verticalmente dentro da sua coluna (ordem cronológica, recente em cima).
-  const minuteRows = useMemo(() => {
-    const fmtHM = new Intl.DateTimeFormat("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
-    // Indexa todas as pedras por minuto (lista, mais recente primeiro)
-    const byMinute = new Map<number, DoubleRow[]>();
-    let minMinute = Infinity;
-    let maxMinute = -Infinity;
-    for (const r of results) {
-      const t = new Date(r.created_at).getTime();
-      const minuteStartUtc = Math.floor(t / 60000) * 60000;
-      if (minuteStartUtc < minMinute) minMinute = minuteStartUtc;
-      if (minuteStartUtc > maxMinute) maxMinute = minuteStartUtc;
-      const list = byMinute.get(minuteStartUtc) ?? [];
-      list.push(r);
-      byMinute.set(minuteStartUtc, list);
-    }
-    // Ordena cada minuto cronologicamente: a 1ª pedra do minuto fica à esquerda
-    for (const list of byMinute.values()) {
-      list.sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      );
-    }
-
-    if (!isFinite(minMinute)) return [] as MinuteCol[][];
-
-    const minuteDigit = (utcMs: number) => new Date(utcMs).getUTCMinutes() % 10;
-    const decadeStart = (utcMs: number) =>
-      utcMs - minuteDigit(utcMs) * 60000;
-
-    const firstDecade = decadeStart(minMinute);
-    const lastDecade = decadeStart(maxMinute);
-
-    const rows: MinuteCol[][] = [];
-    for (let dec = lastDecade; dec >= firstDecade; dec -= 10 * 60000) {
-      const row: MinuteCol[] = [];
-      let any = false;
-      for (let col = 0; col < 10; col++) {
-        const minuteStartUtc = dec + col * 60000;
-        const stones = byMinute.get(minuteStartUtc) ?? [];
-        if (stones.length) any = true;
-        row.push({
-          minuteStartUtc,
-          label: fmtHM.format(new Date(minuteStartUtc)),
-          stones,
-        });
-      }
-      if (any) rows.push(row);
-    }
-    return rows;
-  }, [results]);
-
-
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
-  const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
   const latestResult = results[results.length - 1] ?? null;
 
   // Countdown da próxima rodada — calculado a partir do created_at
