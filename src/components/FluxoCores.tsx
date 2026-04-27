@@ -37,9 +37,18 @@ export default function FluxoCores({
     [stones, nowMs, tab],
   );
   const evaluated = tabState.currentEvaluated;
-  const greens = tabState.wins;
-  const reds = tabState.losses;
-  const accuracy = tabState.accuracy;
+  const greens = useMemo(
+    () => evaluated.filter((signal) => signal.status === "green").length,
+    [evaluated],
+  );
+  const reds = useMemo(
+    () => evaluated.filter((signal) => signal.status === "red").length,
+    [evaluated],
+  );
+  const accuracy = useMemo(() => {
+    const resolved = greens + reds;
+    return resolved ? Math.round((greens / resolved) * 100) : 0;
+  }, [greens, reds]);
 
   function handleCopy() {
     const header = `Fluxo Jon Cores — ${tab}`;
