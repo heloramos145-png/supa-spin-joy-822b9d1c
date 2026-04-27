@@ -302,20 +302,27 @@ export default function FluxoCores({
         <div className="text-xs font-bold uppercase tracking-wider text-emerald-300">
           Fluxo Jon Cores
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-[10px] text-slate-400 tabular-nums">
-            <span className="text-emerald-400">{greens}</span>
-            {" / "}
-            <span className="text-rose-400">{reds}</span>
-            {" • "}
-            {accuracy}%
-          </div>
-          <button
-            onClick={handleCopy}
-            className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-200 hover:bg-slate-700 transition"
-          >
-            {copied ? "Copiado!" : "Copiar lista"}
-          </button>
+        <button
+          onClick={handleCopy}
+          className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-200 hover:bg-slate-700 transition"
+        >
+          {copied ? "Copiado!" : "Copiar lista"}
+        </button>
+      </div>
+
+      {/* Placar do dia (acumulado em todas as listas) */}
+      <div className="mb-2 grid grid-cols-3 gap-1.5">
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1.5 text-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300">Wins</div>
+          <div className="text-lg font-extrabold tabular-nums text-emerald-300 leading-none">{greens}</div>
+        </div>
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/15 px-2 py-1.5 text-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-rose-300">Loss</div>
+          <div className="text-lg font-extrabold tabular-nums text-rose-300 leading-none">{reds}</div>
+        </div>
+        <div className="rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-1.5 text-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-sky-300">Acerto</div>
+          <div className="text-lg font-extrabold tabular-nums text-sky-300 leading-none">{accuracy}%</div>
         </div>
       </div>
 
