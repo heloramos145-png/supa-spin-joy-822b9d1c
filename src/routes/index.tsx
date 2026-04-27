@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
 import BrancosFluxoJon from "@/components/BrancosFluxoJon";
+import TemporalFluxoJon from "@/components/TemporalFluxoJon";
 import Slot from "@/components/Slot";
 import DrawingOverlay from "@/components/DrawingOverlay";
 export const Route = createFileRoute("/")({
@@ -401,6 +402,9 @@ function Index() {
           status="waiting"
           countdown={nextRoundIn}
         />
+
+        {/* Temporal do Fluxo Jon — surf de cores + REC de branco */}
+        <TemporalFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
 
         {/* Pedra antecipada removida a pedido do usuário */}
 
