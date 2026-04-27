@@ -460,6 +460,25 @@ function simulateWhiteTierDay(
   };
 }
 
+// Avalia apenas UM tier (100/300/500/1000) — evita travar ao trocar de aba.
+export function getBrancosTierState(
+  stones: BaseStone[],
+  nowMs: number,
+  tier: WhiteTierKey,
+) {
+  if (!nowMs) {
+    return {
+      latestSignals: [] as TimedSignal[],
+      currentEvaluated: [] as Array<TimedSignal & { status: WhiteSignalStatus }>,
+      historySignals: [] as TimedSignal[],
+      historyEvaluated: [] as Array<TimedSignal & { status: WhiteSignalStatus }>,
+      wins: 0,
+      losses: 0,
+    };
+  }
+  return simulateWhiteTierDay(tier, stones, nowMs);
+}
+
 export function getBrancosDayState(stones: BaseStone[], nowMs: number) {
   if (!nowMs) {
     const emptyTier = {
@@ -498,4 +517,5 @@ export function getBrancosDayState(stones: BaseStone[], nowMs: number) {
     .sort((a, b) => a.timeMs - b.timeMs);
 
   return { byTier, allHistory };
+}
 }
