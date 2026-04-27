@@ -182,14 +182,44 @@ export default function FluxoCores({
   const resolved = greens + reds;
   const accuracy = resolved ? Math.round((greens / resolved) * 100) : 0;
 
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    const header = `Fluxo Jon Cores — ${tab}`;
+    const lines = evaluated.map((s) => {
+      const cor = s.predicted === 1 ? "VERDE" : "PRETO";
+      return `${s.label} → ${cor} ou BRANCO`;
+    });
+    const text = [header, ...lines].join("\n");
+    try {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div className="rounded-md border border-emerald-500/30 bg-slate-900/60 p-2">
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="text-xs font-bold uppercase tracking-wider text-emerald-300">
           Fluxo Jon Cores
         </div>
-        <div className="text-[10px] text-slate-400 tabular-nums">
-          ✅ {greens} ❌ {reds} • {accuracy}%
+        <div className="flex items-center gap-2">
+          <div className="text-[10px] text-slate-400 tabular-nums">
+            <span className="text-emerald-400">{greens}</span>
+            {" / "}
+            <span className="text-rose-400">{reds}</span>
+            {" • "}
+            {accuracy}%
+          </div>
+          <button
+            onClick={handleCopy}
+            className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-200 hover:bg-slate-700 transition"
+          >
+            {copied ? "Copiado!" : "Copiar lista"}
+          </button>
         </div>
       </div>
 
@@ -219,14 +249,14 @@ export default function FluxoCores({
                 : s.status === "waiting"
                   ? "bg-amber-400/15 border-amber-400/40 animate-pulse"
                   : "bg-slate-800/40 border-slate-700/40";
-          const mark =
+          const dotColor =
             s.status === "green"
-              ? "✅"
+              ? "bg-emerald-400"
               : s.status === "red"
-                ? "❌"
+                ? "bg-rose-400"
                 : s.status === "waiting"
-                  ? "⏳"
-                  : "";
+                  ? "bg-amber-300"
+                  : "bg-slate-600";
           return (
             <div
               key={s.timeMs}
@@ -239,7 +269,10 @@ export default function FluxoCores({
                 <StoneIcon color={s.predicted} />
                 <StoneIcon color={0} />
               </div>
-              <span className="text-xs w-5 text-right">{mark}</span>
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${dotColor}`}
+                aria-label={s.status}
+              />
             </div>
           );
         })}
