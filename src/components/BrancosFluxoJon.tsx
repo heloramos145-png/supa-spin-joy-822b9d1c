@@ -173,93 +173,138 @@ export default function BrancosFluxoJon({
     [stones],
   );
 
-  const forecast: Forecast | null = useMemo(() => {
-    if (!nowMs) return null;
+  // ---------- gera sinais frescos a partir da estratégia da aba ----------
+  function computeFreshSignals(forTab: Tier["key"]): { timeMs: number; label: string }[] {
+    if (!nowMs) return [];
 
-    if (tab === "100") {
-      // último branco × 14 → dígitos → 3 minutos
+    const minutesToSignals = (minutes: number[], afterMs: number) =>
+      minutes.map((m) => {
+        const ms = nextOccurrenceAt(m % 60, afterMs);
+        return { timeMs: ms, label: fmtHM(ms) };
+      });
+
+    if (forTab === "100") {
       const last = whites[whites.length - 1];
-      if (!last) return { tier: "100", baseInfo: "Aguardando 1º branco", signals: [] };
+      if (!last) return [];
       const lastMs = new Date(last.created_at).getTime();
       const minute = brasiliaMinute(lastMs);
       const product = minute * 14;
       const minutes = pickThreeMinutes(minute, digitsOf(product));
-      const signals = minutes.map((m) => {
-        const ms = nextOccurrenceAt(m % 60, lastMs);
-        return { timeMs: ms, label: fmtHM(ms) };
-      });
-      return {
-        tier: "100",
-        baseInfo: `Branco ${fmtHM(lastMs)} • ${minute}×14=${product}`,
-        signals,
-      };
+      return minutesToSignals(minutes, lastMs);
     }
 
-    if (tab === "300") {
-      // 5 últimos brancos × 14 → confluência → 3 mais fortes
+    if (forTab === "300") {
       const last5 = whites.slice(-5);
-      if (last5.length < 1)
-        return { tier: "300", baseInfo: "Aguardando brancos", signals: [] };
-      const products = last5.map((w) => brasiliaMinute(new Date(w.created_at).getTime()) * 14);
+      if (last5.length < 1) return [];
+      const products = last5.map(
+        (w) => brasiliaMinute(new Date(w.created_at).getTime()) * 14,
+      );
       const top = topDigits(products, 3);
       const baseMinute = brasiliaMinute(nowMs);
-      const minutes = pickThreeMinutes(baseMinute, top);
-      const signals = minutes.map((m) => {
-        const ms = nextOccurrenceAt(m % 60, nowMs);
-        return { timeMs: ms, label: fmtHM(ms) };
-      });
-      return {
-        tier: "300",
-        baseInfo: `5 últimos × 14 → top dígitos ${top.join(", ")}`,
-        signals,
-      };
+      return minutesToSignals(pickThreeMinutes(baseMinute, top), nowMs);
     }
 
-    if (tab === "500") {
-      // 3 primeiros brancos da hora passada × 14 → confluência → 3 mais fortes
+    if (forTab === "500") {
       const prevHour = brasiliaHour(nowMs) - 1;
       const inPrev = whites.filter(
-        (w) => brasiliaHour(new Date(w.created_at).getTime()) === ((prevHour + 24) % 24),
+        (w) =>
+          brasiliaHour(new Date(w.created_at).getTime()) ===
+          ((prevHour + 24) % 24),
       );
       const first3 = inPrev.slice(0, 3);
-      if (first3.length === 0)
-        return { tier: "500", baseInfo: "Sem brancos na hora anterior", signals: [] };
-      const products = first3.map((w) => brasiliaMinute(new Date(w.created_at).getTime()) * 14);
+      if (first3.length === 0) return [];
+      const products = first3.map(
+        (w) => brasiliaMinute(new Date(w.created_at).getTime()) * 14,
+      );
       const top = topDigits(products, 3);
       const baseMinute = brasiliaMinute(nowMs);
-      const minutes = pickThreeMinutes(baseMinute, top);
-      const signals = minutes.map((m) => {
-        const ms = nextOccurrenceAt(m % 60, nowMs);
-        return { timeMs: ms, label: fmtHM(ms) };
-      });
-      return {
-        tier: "500",
-        baseInfo: `3 primeiros hora passada × 14 → ${top.join(", ")}`,
-        signals,
-      };
+      return minutesToSignals(pickThreeMinutes(baseMinute, top), nowMs);
     }
 
     // 1000
     const prevHour = brasiliaHour(nowMs) - 1;
     const inPrev = whites.filter(
-      (w) => brasiliaHour(new Date(w.created_at).getTime()) === ((prevHour + 24) % 24),
+      (w) =>
+        brasiliaHour(new Date(w.created_at).getTime()) ===
+        ((prevHour + 24) % 24),
     );
-    if (inPrev.length === 0)
-      return { tier: "1000", baseInfo: "Sem brancos na hora anterior", signals: [] };
-    const products = inPrev.map((w) => brasiliaMinute(new Date(w.created_at).getTime()) * 14);
+    if (inPrev.length === 0) return [];
+    const products = inPrev.map(
+      (w) => brasiliaMinute(new Date(w.created_at).getTime()) * 14,
+    );
     const top = topDigits(products, 3);
     const baseMinute = brasiliaMinute(nowMs);
-    const minutes = pickThreeMinutes(baseMinute, top);
-    const signals = minutes.map((m) => {
-      const ms = nextOccurrenceAt(m % 60, nowMs);
-      return { timeMs: ms, label: fmtHM(ms) };
+    return minutesToSignals(pickThreeMinutes(baseMinute, top), nowMs);
+  }
+
+  // ---------- sinais persistidos por aba ----------
+  type StoredSignals = Record<Tier["key"], { timeMs: number; label: string }[]>;
+
+  const [storedSignals, setStoredSignals] = useState<StoredSignals>(() => {
+    if (typeof window === "undefined")
+      return { "100": [], "300": [], "500": [], "1000": [] };
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as StoredSignals;
+        return {
+          "100": parsed["100"] ?? [],
+          "300": parsed["300"] ?? [],
+          "500": parsed["500"] ?? [],
+          "1000": parsed["1000"] ?? [],
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return { "100": [], "300": [], "500": [], "1000": [] };
+  });
+
+  // Janela total de cada sinal: minuto exato + 1min de margem depois
+  const SIGNAL_WINDOW_MS = 120000;
+
+  // Regenera sinais de cada aba apenas quando todos os 3 já fecharam (ou estão vazios)
+  useEffect(() => {
+    if (!nowMs) return;
+    setStoredSignals((prev) => {
+      let changed = false;
+      const next: StoredSignals = { ...prev };
+      (["100", "300", "500", "1000"] as Tier["key"][]).forEach((k) => {
+        const cur = prev[k];
+        const allClosed =
+          cur.length === 0 || cur.every((s) => nowMs >= s.timeMs + SIGNAL_WINDOW_MS);
+        if (allClosed) {
+          const fresh = computeFreshSignals(k);
+          // só substitui se gerou algo novo (evita apagar uma lista válida quando ainda não dá pra calcular)
+          if (fresh.length > 0) {
+            // se for igual à anterior, não regrava
+            const same =
+              cur.length === fresh.length &&
+              cur.every((s, i) => s.timeMs === fresh[i].timeMs);
+            if (!same) {
+              next[k] = fresh;
+              changed = true;
+            }
+          }
+        }
+      });
+      if (!changed) return prev;
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
     });
-    return {
-      tier: "1000",
-      baseInfo: `Todos da hora passada (${inPrev.length}) × 14 → ${top.join(", ")}`,
-      signals,
-    };
-  }, [tab, whites, nowMs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nowMs, whites.length]);
+
+  const forecast: Forecast = {
+    tier: tab,
+    baseInfo: "",
+    signals: storedSignals[tab],
+  };
+
 
   const evaluated = useMemo(
     () =>
