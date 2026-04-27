@@ -322,7 +322,7 @@ export default function TemporalFluxoJon({
             cor mais puxada após cada pedra • % do dia
           </span>
         </div>
-        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-15 gap-1.5">
+        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
           {pullers.map((p) => (
             <div
               key={p.roll}
