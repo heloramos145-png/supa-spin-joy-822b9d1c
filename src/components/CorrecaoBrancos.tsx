@@ -117,11 +117,14 @@ export default function CorrecaoBrancos({
   type Row = {
     stoneId: string | number;
     whiteMs: number;
-    hit: { tier: "100" | "300" | "500" | "1000"; type: "LATADO" | "MARGEM" } | null;
+    tier: "100" | "300" | "500" | "1000";
+    type: "LATADO" | "MARGEM";
   };
 
+  // Só lista brancos do dia que BATERAM em algum sinal (LATADO ou MARGEM).
   const rows = useMemo<Row[]>(() => {
-    return whitesToday.map((w) => {
+    const out: Row[] = [];
+    for (const w of whitesToday) {
       const wMs = new Date(w.created_at).getTime();
       let best: { entry: HistoryEntry; type: "LATADO" | "MARGEM" } | null = null;
       for (const sig of allSignals) {
@@ -137,15 +140,17 @@ export default function CorrecaoBrancos({
           }
         }
       }
-      return {
-        stoneId: w.id,
-        whiteMs: wMs,
-        hit: best ? { tier: best.entry.tier, type: best.type } : null,
-      };
-    });
+      if (best) {
+        out.push({
+          stoneId: w.id,
+          whiteMs: wMs,
+          tier: best.entry.tier,
+          type: best.type,
+        });
+      }
+    }
+    return out;
   }, [whitesToday, allSignals]);
-
-  const hitCount = rows.filter((r) => r.hit).length;
 
   return (
     <div className="rounded-md border border-emerald-500/30 bg-slate-900/60 p-2">
@@ -159,27 +164,23 @@ export default function CorrecaoBrancos({
           </div>
         </div>
         <div className="text-[10px] text-slate-400 tabular-nums">
-          {rows.length} brancos • <span className="text-emerald-400">{hitCount}</span> acertos
+          <span className="text-emerald-400">{rows.length}</span> acertos
         </div>
       </div>
 
       <div className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
         {rows.length === 0 ? (
           <div className="text-[11px] text-slate-500 text-center py-3">
-            Nenhum branco hoje ainda.
+            Nenhum branco bateu hoje ainda.
           </div>
         ) : (
           rows.map((h) => {
-            const bg = !h.hit
-              ? "bg-slate-800/40 border-slate-700/40"
-              : h.hit.type === "LATADO"
+            const bg =
+              h.type === "LATADO"
                 ? "bg-emerald-500/20 border-emerald-400/60"
                 : "bg-emerald-500/10 border-emerald-500/40";
-            const tagColor = !h.hit
-              ? "text-slate-500"
-              : h.hit.type === "LATADO"
-                ? "text-emerald-200"
-                : "text-emerald-300";
+            const tagColor =
+              h.type === "LATADO" ? "text-emerald-200" : "text-emerald-300";
             return (
               <div
                 key={`${h.stoneId}`}
@@ -196,14 +197,12 @@ export default function CorrecaoBrancos({
                   <span className="font-mono text-[12px] font-bold text-slate-100 tabular-nums">
                     {fmtHM(h.whiteMs)}
                   </span>
-                  {h.hit && (
-                    <span className="text-[9px] font-bold text-slate-400">
-                      ${h.hit.tier}
-                    </span>
-                  )}
+                  <span className="text-[9px] font-bold text-slate-400">
+                    ${h.tier}
+                  </span>
                 </div>
                 <span className={`text-[10px] font-extrabold ${tagColor}`}>
-                  {h.hit ? `WIN ${h.hit.type}` : "—"}
+                  WIN {h.type}
                 </span>
               </div>
             );

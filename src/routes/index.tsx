@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { jonbetSupabase as supabase } from "@/integrations/supabase/jonbet";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -152,6 +152,7 @@ function Index() {
   const isMobile = useIsMobile();
   const [results, setResults] = useState<DoubleRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const [syncState, setSyncState] = useState<ClientSyncState>({
     status: "idle",
     lastInserted: 0,
@@ -163,6 +164,15 @@ function Index() {
   const [livePreview, setLivePreview] = useState<LivePayload | null>(null);
   useEffect(() => {
     setNow(new Date());
+    // gate de auth no client (evita hydration mismatch)
+    import("@/lib/auth").then(({ getSession }) => {
+      const s = getSession();
+      if (!s) {
+        window.location.href = "/login";
+        return;
+      }
+      setAuthChecked(true);
+    });
   }, []);
 
   // WebSocket direto na Jonbet (browser) — antecipa a pedra (status "rolling")
