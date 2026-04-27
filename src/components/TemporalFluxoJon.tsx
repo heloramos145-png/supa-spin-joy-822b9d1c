@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Flame, Snowflake, Zap, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Activity, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
+import Slot from "@/components/Slot";
 
 export type TemporalStone = {
   id: string | number;
@@ -185,14 +186,7 @@ export default function TemporalFluxoJon({
     return out;
   }, [stones]);
 
-  // Cor da pedra (número) no Double da Blaze/Jonbet:
-  // 0 = branco; 1..7 = vermelho; 8..14 = preto. Usamos só pra tile.
-  const rollBg = (n: number) =>
-    n === 0
-      ? "bg-white text-slate-900"
-      : n <= 7
-        ? "bg-rose-600 text-white"
-        : "bg-slate-900 text-white";
+
 
   const colorDot = (c: 0 | 1 | 2 | null) => {
     if (c === null) return <div className="h-3 w-3 rounded-full bg-slate-700/70" />;
@@ -208,41 +202,35 @@ export default function TemporalFluxoJon({
       <div
         className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all ${
           recInfo.isRec
-            ? "border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-rose-500/15 shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]"
-            : "border-slate-700/70 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
+            ? "border-rose-500/50 bg-gradient-to-r from-rose-950/60 via-slate-900/70 to-rose-950/60 shadow-[0_0_18px_-8px_rgba(244,63,94,0.55)]"
+            : "border-emerald-700/40 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
         }`}
       >
-        {recInfo.isRec && (
-          <div className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-amber-300/10 to-transparent" />
-        )}
 
         <div className="relative flex items-center gap-3">
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
               recInfo.isRec
-                ? "border-amber-300/60 bg-amber-400/15 text-amber-300"
-                : "border-slate-600/70 bg-slate-800/60 text-slate-300"
+                ? "border-rose-400/60 bg-rose-500/15 text-rose-300"
+                : "border-emerald-400/60 bg-emerald-500/15 text-emerald-300"
             }`}
           >
-            {recInfo.isRec ? (
-              <Flame className="h-5 w-5 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
-            ) : (
-              <Snowflake className="h-5 w-5" />
-            )}
+            <Activity className="h-5 w-5" />
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`text-[11px] font-extrabold uppercase tracking-[0.18em] ${
-                  recInfo.isRec ? "text-amber-300" : "text-slate-200"
+                  recInfo.isRec ? "text-rose-200" : "text-slate-200"
                 }`}
               >
                 Temporal do Fluxo Jon
               </span>
               {recInfo.isRec && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-amber-200">
-                  <Zap className="h-2.5 w-2.5" /> REC
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/60 bg-rose-500/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-rose-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-300 animate-pulse" />
+                  REC
                 </span>
               )}
               {/* Alerta verde/vermelho ENTRAR / NÃO ENTRAR */}
@@ -268,14 +256,12 @@ export default function TemporalFluxoJon({
             </div>
             <div
               className={`mt-1 text-[11px] font-medium ${
-                recInfo.isRec ? "text-amber-100/90" : "text-slate-400"
+                recInfo.isRec ? "text-rose-100/90" : "text-slate-400"
               }`}
             >
               {whites.length < 1
                 ? "Aguardando histórico…"
-                : recInfo.isRec
-                  ? `🔥 ${reasonText} • há ${recInfo.sinceMin}min`
-                  : `${recInfo.stonesSince} pedras sem branco • há ${recInfo.sinceMin}min`}
+                : `${reasonText} • há ${recInfo.sinceMin}min`}
             </div>
           </div>
 
@@ -299,8 +285,8 @@ export default function TemporalFluxoJon({
                     className={`h-3 w-1.5 rounded-sm ${
                       on
                         ? recInfo.isRec
-                          ? "bg-amber-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]"
-                          : "bg-slate-400"
+                          ? "bg-rose-400"
+                          : "bg-emerald-400"
                         : "bg-slate-700/70"
                     }`}
                   />
@@ -313,7 +299,7 @@ export default function TemporalFluxoJon({
 
       {/* PEDRAS PUXADORAS COM 1 TIRO */}
       <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
-        <div className="flex items-center gap-1.5 mb-2">
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <Target className="h-3.5 w-3.5 text-cyan-300" />
           <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-cyan-200">
             Pedras Puxadoras com 1 Tiro
@@ -329,11 +315,13 @@ export default function TemporalFluxoJon({
               className="flex flex-col items-center gap-1 rounded-md border border-slate-700/60 bg-slate-800/50 p-1.5"
               title={`Pedra ${p.roll}: ${p.total} ocorrências`}
             >
-              <div
-                className={`h-6 w-6 rounded-md flex items-center justify-center text-[11px] font-black ring-1 ring-slate-600 ${rollBg(p.roll)}`}
-              >
-                {p.roll}
-              </div>
+              <Slot
+                number={p.roll}
+                color={
+                  p.roll === 0 ? "white" : p.roll <= 7 ? "green" : "black"
+                }
+                size="sm"
+              />
               <div className="flex items-center gap-1">
                 {colorDot(p.topColor)}
                 <span
