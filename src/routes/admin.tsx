@@ -6,6 +6,8 @@ import {
   listCodes,
   createCode,
   deleteCode,
+  revokeCode,
+  unrevokeCode,
   listUsers,
   deleteUser,
   type ActivationCode,
