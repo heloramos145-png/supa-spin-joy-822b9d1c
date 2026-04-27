@@ -17,15 +17,18 @@ function fmtHM(ms: number): string {
   }).format(new Date(ms));
 }
 
-// Lê os sinais salvos pelo BrancosFluxoJon (todas as 4 abas) e cruza com os
-// brancos do dia. Para cada branco que caiu dentro de uma janela [-1min, +1min]
-// de algum sinal, mostra: ícone branco + minuto que bateu + LATADO / MARGEM.
 type StoredSignals = Record<
   "100" | "300" | "500" | "1000",
   { timeMs: number; label: string }[]
 >;
 
 const STORAGE_KEY = "brancos-fluxo-jon:signals:v1";
+const HISTORY_KEY = "brancos-fluxo-jon:history:v1";
+
+type HistoryEntry = {
+  tier: "100" | "300" | "500" | "1000";
+  timeMs: number;
+};
 
 function readSignals(): StoredSignals {
   if (typeof window === "undefined")
@@ -44,15 +47,6 @@ function readSignals(): StoredSignals {
     return { "100": [], "300": [], "500": [], "1000": [] };
   }
 }
-
-// Histórico permanente de sinais já enviados, pra cruzar mesmo depois que
-// a lista é regenerada.
-const HISTORY_KEY = "brancos-fluxo-jon:history:v1";
-
-type HistoryEntry = {
-  tier: "100" | "300" | "500" | "1000";
-  timeMs: number;
-};
 
 function readHistory(): HistoryEntry[] {
   if (typeof window === "undefined") return [];
@@ -80,7 +74,17 @@ export default function CorrecaoBrancos({
   stones: CorrecaoStone[];
   nowMs: number;
 }) {
-  // Sinais ativos + histórico → unifica (dedup por tier+timeMs)
+  // início do dia em Brasília (00:00)
+  const todayStartMs = useMemo(() => {
+    const ref = nowMs || Date.now();
+    const d = new Date(ref - 3 * 60 * 60 * 1000);
+    const start = new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 3, 0, 0),
+    );
+    return start.getTime();
+  }, [nowMs]);
+
+  // Sinais ativos + histórico, filtrados pro dia
   const allSignals = useMemo(() => {
     const active = readSignals();
     const history = readHistory();
@@ -92,83 +96,56 @@ export default function CorrecaoBrancos({
         }
       }
     });
-    // mantém só do dia atual em Brasília
-    const todayStartMs = (() => {
-      const d = new Date((nowMs || Date.now()) - 3 * 60 * 60 * 1000);
-      const start = new Date(
-        Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 3, 0, 0),
-      );
-      return start.getTime();
-    })();
     const filtered = merged.filter((h) => h.timeMs >= todayStartMs);
     writeHistory(filtered);
     return filtered;
-  }, [nowMs]);
+  }, [nowMs, todayStartMs]);
 
-  // Brancos do dia
+  // TODOS os brancos do dia (a partir das 00:00 Brasília)
   const whitesToday = useMemo(() => {
     if (!nowMs) return [];
-    const todayStartMs = (() => {
-      const d = new Date(nowMs - 3 * 60 * 60 * 1000);
-      const start = new Date(
-        Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 3, 0, 0),
-      );
-      return start.getTime();
-    })();
     return stones
       .filter((s) => s.color === 0)
       .filter((s) => new Date(s.created_at).getTime() >= todayStartMs)
       .sort(
         (a, b) =>
-          new Date(a.created_at).getTime() -
-          new Date(b.created_at).getTime(),
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime(),
       );
-  }, [stones, nowMs]);
+  }, [stones, nowMs, todayStartMs]);
 
-  // Pra cada branco do dia, ver se bateu em algum sinal (margem ±1min)
-  type Hit = {
+  type Row = {
     stoneId: string | number;
     whiteMs: number;
-    signalMs: number;
-    tier: "100" | "300" | "500" | "1000";
-    type: "LATADO" | "MARGEM";
+    hit: { tier: "100" | "300" | "500" | "1000"; type: "LATADO" | "MARGEM" } | null;
   };
 
-  const hits = useMemo<Hit[]>(() => {
-    const out: Hit[] = [];
-    for (const w of whitesToday) {
+  const rows = useMemo<Row[]>(() => {
+    return whitesToday.map((w) => {
       const wMs = new Date(w.created_at).getTime();
-      // procura o sinal mais próximo (±60s)
-      let best: { entry: HistoryEntry; diff: number } | null = null;
+      let best: { entry: HistoryEntry; type: "LATADO" | "MARGEM" } | null = null;
       for (const sig of allSignals) {
         const minStart = sig.timeMs;
         const minEnd = sig.timeMs + 60000;
         const prevStart = sig.timeMs - 60000;
         const nextEnd = sig.timeMs + 120000;
         if (wMs >= prevStart && wMs < nextEnd) {
-          const diff = Math.abs(wMs - (minStart + 30000));
-          if (!best || diff < best.diff) {
-            best = { entry: sig, diff };
+          const inExact = wMs >= minStart && wMs < minEnd;
+          const type: "LATADO" | "MARGEM" = inExact ? "LATADO" : "MARGEM";
+          if (!best || (type === "LATADO" && best.type !== "LATADO")) {
+            best = { entry: sig, type };
           }
-          // tipo será definido depois com o mais próximo
-          void minEnd;
         }
       }
-      if (best) {
-        const inExact =
-          wMs >= best.entry.timeMs && wMs < best.entry.timeMs + 60000;
-        out.push({
-          stoneId: w.id,
-          whiteMs: wMs,
-          signalMs: best.entry.timeMs,
-          tier: best.entry.tier,
-          type: inExact ? "LATADO" : "MARGEM",
-        });
-      }
-    }
-    // mais recentes primeiro
-    return out.sort((a, b) => b.whiteMs - a.whiteMs);
+      return {
+        stoneId: w.id,
+        whiteMs: wMs,
+        hit: best ? { tier: best.entry.tier, type: best.type } : null,
+      };
+    });
   }, [whitesToday, allSignals]);
+
+  const hitCount = rows.filter((r) => r.hit).length;
 
   return (
     <div className="rounded-md border border-emerald-500/30 bg-slate-900/60 p-2">
@@ -182,26 +159,30 @@ export default function CorrecaoBrancos({
           </div>
         </div>
         <div className="text-[10px] text-slate-400 tabular-nums">
-          {hits.length} {hits.length === 1 ? "acerto" : "acertos"}
+          {rows.length} brancos • <span className="text-emerald-400">{hitCount}</span> acertos
         </div>
       </div>
 
       <div className="space-y-1 max-h-[260px] overflow-y-auto pr-1">
-        {hits.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="text-[11px] text-slate-500 text-center py-3">
-            Nenhum branco bateu hoje ainda.
+            Nenhum branco hoje ainda.
           </div>
         ) : (
-          hits.map((h) => {
-            const bg =
-              h.type === "LATADO"
+          rows.map((h) => {
+            const bg = !h.hit
+              ? "bg-slate-800/40 border-slate-700/40"
+              : h.hit.type === "LATADO"
                 ? "bg-emerald-500/20 border-emerald-400/60"
                 : "bg-emerald-500/10 border-emerald-500/40";
-            const tagColor =
-              h.type === "LATADO" ? "text-emerald-200" : "text-emerald-300";
+            const tagColor = !h.hit
+              ? "text-slate-500"
+              : h.hit.type === "LATADO"
+                ? "text-emerald-200"
+                : "text-emerald-300";
             return (
               <div
-                key={`${h.stoneId}-${h.signalMs}`}
+                key={`${h.stoneId}`}
                 className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${bg}`}
               >
                 <div className="flex items-center gap-2">
@@ -215,12 +196,14 @@ export default function CorrecaoBrancos({
                   <span className="font-mono text-[12px] font-bold text-slate-100 tabular-nums">
                     {fmtHM(h.whiteMs)}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-400">
-                    ${h.tier}
-                  </span>
+                  {h.hit && (
+                    <span className="text-[9px] font-bold text-slate-400">
+                      ${h.hit.tier}
+                    </span>
+                  )}
                 </div>
                 <span className={`text-[10px] font-extrabold ${tagColor}`}>
-                  WIN {h.type}
+                  {h.hit ? `WIN ${h.hit.type}` : "—"}
                 </span>
               </div>
             );
