@@ -199,14 +199,17 @@ function AdminPage() {
               {codes.map((c) => {
                 const expired = now > c.expiresAt;
                 const usedUp = c.maxUses > 0 && c.usedBy.length >= c.maxUses;
-                const dead = expired || usedUp;
+                const revoked = !!c.revoked;
+                const dead = expired || usedUp || revoked;
                 return (
                   <div
                     key={c.code}
                     className={`rounded-md border p-3 ${
-                      dead
-                        ? "border-slate-700 bg-slate-800/40 opacity-60"
-                        : "border-emerald-500/40 bg-emerald-500/5"
+                      revoked
+                        ? "border-amber-500/40 bg-amber-500/5 opacity-80"
+                        : dead
+                          ? "border-slate-700 bg-slate-800/40 opacity-60"
+                          : "border-emerald-500/40 bg-emerald-500/5"
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -214,7 +217,11 @@ function AdminPage() {
                         {c.code}
                       </div>
                       <div className="flex items-center gap-2 text-[10px]">
-                        {expired ? (
+                        {revoked ? (
+                          <span className="rounded bg-amber-500/20 px-2 py-0.5 font-bold text-amber-300">
+                            REVOGADO
+                          </span>
+                        ) : expired ? (
                           <span className="rounded bg-rose-500/20 px-2 py-0.5 font-bold text-rose-300">
                             EXPIRADO
                           </span>
@@ -226,6 +233,29 @@ function AdminPage() {
                         <span className="text-slate-400">
                           {c.usedBy.length}/{c.maxUses === 0 ? "∞" : c.maxUses} usos
                         </span>
+                        {revoked ? (
+                          <button
+                            onClick={() => {
+                              unrevokeCode(c.code);
+                              refresh();
+                            }}
+                            className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300 hover:bg-emerald-500/30"
+                          >
+                            reativar
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Revogar código ${c.code}? Quem usou ele perde acesso.`)) {
+                                revokeCode(c.code);
+                                refresh();
+                              }
+                            }}
+                            className="rounded bg-amber-500/20 px-2 py-0.5 text-amber-300 hover:bg-amber-500/30"
+                          >
+                            revogar
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             if (confirm(`Apagar código ${c.code}?`)) {
