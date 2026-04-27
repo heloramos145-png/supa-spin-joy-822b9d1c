@@ -214,6 +214,19 @@ function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   return a.id.localeCompare(b.id);
 }
 
+function sameResultsSnapshot(a: DoubleRow[], b: DoubleRow[]) {
+  return (
+    a.length === b.length &&
+    a.every(
+      (row, index) =>
+        row.id === b[index]?.id &&
+        row.roll === b[index]?.roll &&
+        row.color === b[index]?.color &&
+        row.created_at === b[index]?.created_at,
+    )
+  );
+}
+
 // REGRA FIXA: exatamente 2 pedras por minuto (as 2 mais recentes do minuto).
 // NÃO ALTERAR esse limite sem instrução explícita do usuário.
 const STONES_PER_MINUTE = 2;
@@ -318,7 +331,7 @@ function Index() {
       .map(normalizeRow)
       .filter((row): row is DoubleRow => row !== null)
       .sort(compareByCreatedAtAsc));
-    setResults(nextResults);
+    setResults((prev) => (sameResultsSnapshot(prev, nextResults) ? prev : nextResults));
     setLoading(false);
     setSyncState((s) => ({ ...s, lastError: null, status: "ok" }));
   }
