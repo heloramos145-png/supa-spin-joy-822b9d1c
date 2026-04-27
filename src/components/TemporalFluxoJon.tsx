@@ -8,9 +8,11 @@ export type TemporalStone = BaseStone;
 export default function TemporalFluxoJon({
   stones,
   nowMs,
+  brancosDayState,
 }: {
   stones: TemporalStone[];
   nowMs: number;
+  brancosDayState?: ReturnType<typeof getBrancosDayState>;
 }) {
   const whites = useMemo(
     () =>
@@ -23,7 +25,10 @@ export default function TemporalFluxoJon({
     [stones],
   );
 
-  const brancosState = useMemo(() => getBrancosDayState(stones, nowMs), [stones, nowMs]);
+  const brancosState = useMemo(
+    () => brancosDayState ?? getBrancosDayState(stones, nowMs),
+    [brancosDayState, stones, nowMs],
+  );
   const storedSignals = brancosState.allHistory;
 
   const recInfo = useMemo(() => {
