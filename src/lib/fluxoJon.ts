@@ -149,9 +149,11 @@ export function evaluateFluxoSignal(
   const isHit = (color: number) => color === 0 || color === signal.predicted;
 
   if (targets.some((stone) => isHit(stone.color))) return "green";
+  // Só conta como red se realmente houve pedras na janela e nenhuma bateu.
+  // Sem dados na janela = sinal não avaliável (não infla losses do dia).
   if (nowMs >= windowEnd && targets.length >= needed) return "red";
-  if (nowMs >= windowEnd) return "red";
   if (nowMs < minStart) return "pending";
+  if (nowMs >= windowEnd) return "pending";
   return "waiting";
 }
 

@@ -399,6 +399,14 @@ function Index() {
     return remaining;
   }, [latestResult, now]);
 
+  // Clock arredondado pro minuto — usado pelos componentes pesados
+  // (FluxoCores, Brancos, Temporal) que recalculam todo o dia.
+  // Sem isso, eles rodam a cada 1s e travam a página.
+  const nowMinuteMs = useMemo(() => {
+    if (!now) return 0;
+    return Math.floor(now.getTime() / 60000) * 60000;
+  }, [now]);
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -430,7 +438,7 @@ function Index() {
         />
 
         {/* Temporal do Fluxo Jon — surf de cores + REC de branco */}
-        <TemporalFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
+        <TemporalFluxoJon stones={results} nowMs={nowMinuteMs} />
 
         {/* Pedra antecipada removida a pedido do usuário */}
 
@@ -648,9 +656,9 @@ function Index() {
 
                 {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
                 <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
-                  <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
-                  <BrancosFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
-                  <CorrecaoBrancos stones={results} nowMs={now ? now.getTime() : 0} />
+                  <FluxoCores stones={results} nowMs={nowMinuteMs} />
+                  <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
+                  <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
                 </div>
               </div>
             </div>
