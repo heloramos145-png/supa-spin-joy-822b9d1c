@@ -326,6 +326,29 @@ export default function BrancosFluxoJon({
     if (!nowMs || !hydrated) return;
     setStoredSignals((prev) => {
       const today = brasiliaDayKey(nowMs);
+      const sampleTime =
+        prev["100"][0]?.timeMs ??
+        prev["300"][0]?.timeMs ??
+        prev["500"][0]?.timeMs ??
+        prev["1000"][0]?.timeMs ??
+        null;
+      if (sampleTime && brasiliaDayKey(sampleTime) !== today) {
+        const resetSignals: StoredSignals = {
+          "100": [],
+          "300": [],
+          "500": [],
+          "1000": [],
+        };
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ dayKey: today, signals: resetSignals } satisfies SignalsStore),
+          );
+        } catch {
+          // ignore
+        }
+        return resetSignals;
+      }
       let changed = false;
       const next: StoredSignals = { ...prev };
       (["100", "300", "500", "1000"] as Tier["key"][]).forEach((k) => {
