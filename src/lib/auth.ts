@@ -122,6 +122,12 @@ export function login(
     if (existing.passwordHash !== simpleHash(p)) {
       return { ok: false, error: "Senha incorreta." };
     }
+    // verifica se o código usado foi revogado
+    const allCodes = read<ActivationCode[]>(CODES_KEY, []);
+    const userCode = allCodes.find((x) => x.code === existing.codeUsed);
+    if (userCode?.revoked) {
+      return { ok: false, error: "Seu acesso foi revogado pelo admin." };
+    }
     if (Date.now() > existing.codeExpiresAt) {
       return {
         ok: false,
