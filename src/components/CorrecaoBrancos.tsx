@@ -16,12 +16,17 @@ function fmtHM(ms: number): string {
 export default function CorrecaoBrancos({
   stones,
   nowMs,
+  dayState,
 }: {
   stones: CorrecaoStone[];
   nowMs: number;
+  dayState?: ReturnType<typeof getBrancosDayState>;
 }) {
   const todayStartMs = useMemo(() => startOfBrasiliaDayMs(nowMs || Date.now()), [nowMs]);
-  const brancosState = useMemo(() => getBrancosDayState(stones, nowMs), [stones, nowMs]);
+  const brancosState = useMemo(
+    () => dayState ?? getBrancosDayState(stones, nowMs),
+    [dayState, stones, nowMs],
+  );
 
   const whitesToday = useMemo(() => {
     if (!nowMs) return [];
