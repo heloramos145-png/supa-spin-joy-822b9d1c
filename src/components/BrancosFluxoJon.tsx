@@ -240,32 +240,58 @@ export default function BrancosFluxoJon({
   // ---------- sinais persistidos por aba ----------
   type StoredSignals = Record<Tier["key"], { timeMs: number; label: string }[]>;
 
-  const [storedSignals, setStoredSignals] = useState<StoredSignals>(() => {
-    if (typeof window === "undefined")
-      return { "100": [], "300": [], "500": [], "1000": [] };
+  // SSR-safe: começa vazio, hidrata do localStorage no cliente.
+  const [storedSignals, setStoredSignals] = useState<StoredSignals>({
+    "100": [],
+    "300": [],
+    "500": [],
+    "1000": [],
+  });
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as StoredSignals;
-        return {
+        setStoredSignals({
           "100": parsed["100"] ?? [],
           "300": parsed["300"] ?? [],
           "500": parsed["500"] ?? [],
           "1000": parsed["1000"] ?? [],
-        };
+        });
       }
     } catch {
       // ignore
     }
-    return { "100": [], "300": [], "500": [], "1000": [] };
-  });
+    setHydrated(true);
+  }, []);
 
   // Janela total de cada sinal: minuto exato + 1min de margem depois
   const SIGNAL_WINDOW_MS = 120000;
 
+  // Histórico permanente (pra Correção cruzar mesmo após regenerar)
+  const HISTORY_KEY = "brancos-fluxo-jon:history:v1";
+  function appendHistory(tier: Tier["key"], items: { timeMs: number }[]) {
+    try {
+      const raw = window.localStorage.getItem(HISTORY_KEY);
+      const cur = raw ? (JSON.parse(raw) as { tier: Tier["key"]; timeMs: number }[]) : [];
+      let changed = false;
+      for (const it of items) {
+        if (!cur.some((h) => h.tier === tier && h.timeMs === it.timeMs)) {
+          cur.push({ tier, timeMs: it.timeMs });
+          changed = true;
+        }
+      }
+      if (changed) window.localStorage.setItem(HISTORY_KEY, JSON.stringify(cur));
+    } catch {
+      // ignore
+    }
+  }
+
   // Regenera sinais de cada aba apenas quando todos os 3 já fecharam (ou estão vazios)
   useEffect(() => {
-    if (!nowMs) return;
+    if (!nowMs || !hydrated) return;
     setStoredSignals((prev) => {
       let changed = false;
       const next: StoredSignals = { ...prev };
@@ -284,8 +310,13 @@ export default function BrancosFluxoJon({
             if (!same) {
               next[k] = fresh;
               changed = true;
+              // grava no histórico permanente pra correção cruzar depois
+              appendHistory(k, fresh);
             }
           }
+        } else {
+          // mesmo sem regenerar, garante que os sinais atuais estão no histórico
+          appendHistory(k, cur);
         }
       });
       if (!changed) return prev;
@@ -297,7 +328,7 @@ export default function BrancosFluxoJon({
       return next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nowMs, whites.length]);
+  }, [nowMs, whites.length, hydrated]);
 
   const forecast: Forecast = {
     tier: tab,

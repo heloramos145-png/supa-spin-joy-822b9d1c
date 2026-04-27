@@ -153,23 +153,32 @@ export default function FluxoCores({
   // Lista FIXA: gerada uma vez, persistida em localStorage. Só regenera
   // quando TODOS os 35 sinais terminaram. Sobrevive a refresh / fechar aba.
   const STORAGE_KEY = "fluxo-cores:signals:v1";
-  const [signals, setSignals] = useState<Signal[]>(() => {
-    if (typeof window === "undefined") return [];
+  // IMPORTANTE: começamos com [] e hidratamos do localStorage em useEffect
+  // no cliente. Inicializar com leitura do localStorage no useState quebra
+  // com SSR (servidor devolve [] e o cliente reusa esse [] do HTML).
+  const [signals, setSignals] = useState<Signal[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hidrata do localStorage uma única vez no cliente
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as Signal[];
-      if (Array.isArray(parsed) && parsed.length === SIGNALS_COUNT) return parsed;
+      if (raw) {
+        const parsed = JSON.parse(raw) as Signal[];
+        if (Array.isArray(parsed) && parsed.length === SIGNALS_COUNT) {
+          setSignals(parsed);
+        }
+      }
     } catch {
       // ignore
     }
-    return [];
-  });
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
-    if (!nowMs) return;
+    if (!nowMs || !hydrated) return;
     setSignals((prev) => {
-      // Primeira geração
+      // Primeira geração (só depois de hidratado, pra não sobrescrever storage)
       if (prev.length === 0) {
         const next = buildSignals(nowMs);
         try {
@@ -192,7 +201,7 @@ export default function FluxoCores({
       }
       return prev;
     });
-  }, [nowMs]);
+  }, [nowMs, hydrated]);
 
   const evaluated = useMemo(
     () =>
