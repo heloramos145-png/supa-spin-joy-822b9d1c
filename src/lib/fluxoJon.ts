@@ -29,6 +29,9 @@ export type WhiteHistorySignal = TimedSignal & {
   tier: WhiteTierKey;
 };
 
+type FluxoTabState = ReturnType<typeof getFluxoCoresTabState>;
+type WhiteTierState = ReturnType<typeof simulateWhiteTierDay>;
+
 const FLUXO_INTERVALS = [2, 4, 6, 8, 10, 12, 7, 9];
 const FLUXO_SIGNALS_COUNT = 35;
 const WHITE_SIGNAL_WINDOW_MS = 120000;
@@ -215,6 +218,32 @@ export function getFluxoCoresDayState(stones: BaseStone[], nowMs: number) {
       G2: getFluxoCoresTabState(stones, nowMs, "G2"),
     },
   };
+}
+
+export function getFluxoCoresTabStateFromPrepared(
+  prepared: { dayStones: BaseStone[]; currentSignals: FluxoSignal[]; allSignals: FluxoSignal[] },
+  nowMs: number,
+  tab: FluxoTab,
+): FluxoTabState {
+  const { dayStones, currentSignals, allSignals } = prepared;
+
+  const currentEvaluated = currentSignals.map((signal) => ({
+    ...signal,
+    status: evaluateFluxoSignal(signal, tab, dayStones, nowMs),
+  }));
+
+  let wins = 0;
+  let losses = 0;
+  for (const signal of allSignals) {
+    const status = evaluateFluxoSignal(signal, tab, dayStones, nowMs);
+    if (status === "green") wins++;
+    else if (status === "red") losses++;
+  }
+
+  const resolved = wins + losses;
+  const accuracy = resolved ? Math.round((wins / resolved) * 100) : 0;
+
+  return { currentEvaluated, wins, losses, resolved, accuracy };
 }
 
 function nextOccurrenceAt(brMinute: number, afterMs: number): number {
@@ -477,6 +506,13 @@ export function getBrancosTierState(
     };
   }
   return simulateWhiteTierDay(tier, stones, nowMs);
+}
+
+export function getBrancosTierStateFromPrepared(
+  prepared: Record<WhiteTierKey, WhiteTierState>,
+  tier: WhiteTierKey,
+) {
+  return prepared[tier];
 }
 
 export function getBrancosDayState(stones: BaseStone[], nowMs: number) {
