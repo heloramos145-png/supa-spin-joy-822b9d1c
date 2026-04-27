@@ -93,20 +93,6 @@ function startOfBrasiliaDayISO(ref: Date = new Date()): string {
   return startUtc.toISOString();
 }
 
-type Cell = {
-  rowStart: number;
-  col: number;
-  minute: number;
-  first: DoubleRow | null;
-  second: DoubleRow | null;
-};
-
-type MinuteCol = {
-  minuteStartUtc: number;
-  label: string;
-  stones: DoubleRow[];
-};
-
 type GridRow = {
   rowKey: string;
   cells: Array<{
