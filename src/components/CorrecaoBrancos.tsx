@@ -17,6 +17,11 @@ function fmtHM(ms: number): string {
   }).format(new Date(ms));
 }
 
+function brasiliaDayKey(ms: number): string {
+  const d = new Date(ms - 3 * 60 * 60 * 1000);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+}
+
 type StoredSignals = Record<
   "100" | "300" | "500" | "1000",
   { timeMs: number; label: string }[]
@@ -30,18 +35,34 @@ type HistoryEntry = {
   timeMs: number;
 };
 
+type SignalsStore = {
+  dayKey: string;
+  signals: StoredSignals;
+};
+
+type HistoryStore = {
+  dayKey: string;
+  entries: HistoryEntry[];
+};
+
 function readSignals(): StoredSignals {
   if (typeof window === "undefined")
     return { "100": [], "300": [], "500": [], "1000": [] };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return { "100": [], "300": [], "500": [], "1000": [] };
-    const parsed = JSON.parse(raw) as StoredSignals;
+    const parsed = JSON.parse(raw) as StoredSignals | SignalsStore;
+    const signals =
+      parsed && typeof parsed === "object" && "signals" in parsed
+        ? parsed.dayKey === brasiliaDayKey(Date.now())
+          ? parsed.signals
+          : { "100": [], "300": [], "500": [], "1000": [] }
+        : (parsed as StoredSignals);
     return {
-      "100": parsed["100"] ?? [],
-      "300": parsed["300"] ?? [],
-      "500": parsed["500"] ?? [],
-      "1000": parsed["1000"] ?? [],
+      "100": signals["100"] ?? [],
+      "300": signals["300"] ?? [],
+      "500": signals["500"] ?? [],
+      "1000": signals["1000"] ?? [],
     };
   } catch {
     return { "100": [], "300": [], "500": [], "1000": [] };
@@ -53,7 +74,9 @@ function readHistory(): HistoryEntry[] {
   try {
     const raw = window.localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as HistoryEntry[];
+    const parsed = JSON.parse(raw) as HistoryEntry[] | HistoryStore;
+    if (Array.isArray(parsed)) return parsed;
+    return parsed.dayKey === brasiliaDayKey(Date.now()) ? parsed.entries : [];
   } catch {
     return [];
   }
@@ -61,7 +84,10 @@ function readHistory(): HistoryEntry[] {
 
 function writeHistory(entries: HistoryEntry[]) {
   try {
-    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+    window.localStorage.setItem(
+      HISTORY_KEY,
+      JSON.stringify({ dayKey: brasiliaDayKey(Date.now()), entries } satisfies HistoryStore),
+    );
   } catch {
     // ignore
   }
@@ -149,7 +175,7 @@ export default function CorrecaoBrancos({
         });
       }
     }
-    return out;
+    return out.sort((a, b) => b.whiteMs - a.whiteMs);
   }, [whitesToday, allSignals]);
 
   return (
