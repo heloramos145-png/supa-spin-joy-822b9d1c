@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { jonbetAdmin as supabaseAdmin } from "@/integrations/supabase/jonbet.server";
 
 const API_URL =
   "https://jonbet.bet.br/api/singleplayer-originals/originals/roulette_games/recent/1";
