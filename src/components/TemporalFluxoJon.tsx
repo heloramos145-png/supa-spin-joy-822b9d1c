@@ -186,14 +186,7 @@ export default function TemporalFluxoJon({
     return out;
   }, [stones]);
 
-  // Cor da pedra (número) no Double da Blaze/Jonbet:
-  // 0 = branco; 1..7 = vermelho; 8..14 = preto. Usamos só pra tile.
-  const rollBg = (n: number) =>
-    n === 0
-      ? "bg-white text-slate-900"
-      : n <= 7
-        ? "bg-rose-600 text-white"
-        : "bg-slate-900 text-white";
+
 
   const colorDot = (c: 0 | 1 | 2 | null) => {
     if (c === null) return <div className="h-3 w-3 rounded-full bg-slate-700/70" />;
