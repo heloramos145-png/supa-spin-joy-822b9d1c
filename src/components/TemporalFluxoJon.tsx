@@ -209,13 +209,10 @@ export default function TemporalFluxoJon({
       <div
         className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all ${
           recInfo.isRec
-            ? "border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-rose-500/15 shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]"
-            : "border-slate-700/70 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
+            ? "border-rose-500/50 bg-gradient-to-r from-rose-950/60 via-slate-900/70 to-rose-950/60 shadow-[0_0_18px_-8px_rgba(244,63,94,0.55)]"
+            : "border-emerald-700/40 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
         }`}
       >
-        {recInfo.isRec && (
-          <div className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-amber-300/10 to-transparent" />
-        )}
 
         <div className="relative flex items-center gap-3">
           <div
