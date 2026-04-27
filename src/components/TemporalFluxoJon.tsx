@@ -1,43 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Activity, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Slot from "@/components/Slot";
+import { evaluateWhiteSignal, getBrancosDayState, type BaseStone } from "@/lib/fluxoJon";
 
-export type TemporalStone = {
-  id: string | number;
-  roll: number;
-  color: number; // 0=branco, 1=verde, 2=preto
-  created_at: string;
-};
-
-const SIGNALS_STORAGE_KEY = "brancos-fluxo-jon:signals:v1";
-
-type StoredSignal = { timeMs: number; label: string };
-type StoredSignals = Record<string, StoredSignal[]>;
-type SignalsStore = { dayKey: string; signals: StoredSignals };
-
-type SignalStatus = "pending" | "waiting" | "win-latado" | "win-margem" | "loss";
-
-function evaluateSignal(
-  timeMs: number,
-  whitesMs: number[],
-  nowMs: number,
-): SignalStatus {
-  const minStart = timeMs;
-  const minEnd = timeMs + 60000;
-  const prevStart = timeMs - 60000;
-  const nextEnd = timeMs + 120000;
-
-  const inMinute = whitesMs.some((t) => t >= minStart && t < minEnd);
-  if (inMinute) return "win-latado";
-
-  const inPrev = whitesMs.some((t) => t >= prevStart && t < minStart);
-  const inNext = whitesMs.some((t) => t >= minEnd && t < nextEnd);
-  if (inPrev || inNext) return "win-margem";
-
-  if (nowMs >= nextEnd) return "loss";
-  if (nowMs < prevStart) return "pending";
-  return "waiting";
-}
+export type TemporalStone = BaseStone;
 
 export default function TemporalFluxoJon({
   stones,
@@ -52,49 +18,13 @@ export default function TemporalFluxoJon({
         .filter((s) => s.color === 0)
         .sort(
           (a, b) =>
-            new Date(a.created_at).getTime() -
-            new Date(b.created_at).getTime(),
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
         ),
     [stones],
   );
 
-  // Lê sinais do BrancosFluxoJon (todas as abas) do localStorage
-  const [storedSignals, setStoredSignals] = useState<StoredSignal[]>([]);
-
-  useEffect(() => {
-    function load() {
-      try {
-        const raw = localStorage.getItem(SIGNALS_STORAGE_KEY);
-        if (!raw) {
-          setStoredSignals([]);
-          return;
-        }
-        const parsed = JSON.parse(raw) as StoredSignals | SignalsStore;
-        const map: StoredSignals =
-          parsed && typeof parsed === "object" && "signals" in parsed
-            ? (parsed as SignalsStore).signals
-            : (parsed as StoredSignals);
-        const all: StoredSignal[] = [];
-        for (const k of Object.keys(map ?? {})) {
-          for (const s of map[k] ?? []) all.push(s);
-        }
-        all.sort((a, b) => a.timeMs - b.timeMs);
-        setStoredSignals(all);
-      } catch {
-        setStoredSignals([]);
-      }
-    }
-    load();
-    const id = window.setInterval(load, 5000);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === SIGNALS_STORAGE_KEY) load();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.clearInterval(id);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
+  const brancosState = useMemo(() => getBrancosDayState(stones, nowMs), [stones, nowMs]);
+  const storedSignals = brancosState.allHistory;
 
   const recInfo = useMemo(() => {
     const whitesMs = whites.map((w) => new Date(w.created_at).getTime());
@@ -104,12 +34,10 @@ export default function TemporalFluxoJon({
       : stones.length;
     const sinceMin = lastWhiteMs && nowMs ? Math.floor((nowMs - lastWhiteMs) / 60000) : 0;
 
-    // Avalia os últimos sinais já fechados (pending/waiting não contam)
     const evaluated = storedSignals
-      .map((s) => ({ ...s, status: evaluateSignal(s.timeMs, whitesMs, nowMs) }))
+      .map((s) => ({ ...s, status: evaluateWhiteSignal(s.timeMs, stones, nowMs) }))
       .filter((s) => s.status === "loss" || s.status === "win-latado" || s.status === "win-margem");
 
-    // Conta perdas consecutivas no final
     let lossStreak = 0;
     for (let i = evaluated.length - 1; i >= 0; i--) {
       if (evaluated[i].status === "loss") lossStreak++;
@@ -120,25 +48,13 @@ export default function TemporalFluxoJon({
     const recByLoss = lossStreak >= 3;
     const isRec = recBy25 || recByLoss;
 
-    return {
-      isRec,
-      recBy25,
-      recByLoss,
-      stonesSince,
-      sinceMin,
-      lossStreak,
-    };
+    return { isRec, recBy25, recByLoss, stonesSince, sinceMin, lossStreak };
   }, [whites, stones, nowMs, storedSignals]);
 
   const reasonText = recInfo.recByLoss
     ? `${recInfo.lossStreak} sinais seguidos perdidos`
-    : recInfo.recBy25
-      ? `${recInfo.stonesSince} pedras sem branco`
-      : `${recInfo.stonesSince} pedras sem branco`;
+    : `${recInfo.stonesSince} pedras sem branco`;
 
-  // === PEDRAS PUXADORAS COM 1 TIRO ===
-  // Para cada número 0..14, olha a próxima pedra que veio depois e
-  // computa qual cor mais "puxou" (0=branco, 1=verde, 2=preto) e a % no dia.
   const pullers = useMemo(() => {
     const ordered = [...stones].sort(
       (a, b) =>
@@ -156,12 +72,7 @@ export default function TemporalFluxoJon({
       agg.counts[c] += 1;
       map.set(cur.roll, agg);
     }
-    const out: {
-      roll: number;
-      topColor: 0 | 1 | 2 | null;
-      pct: number;
-      total: number;
-    }[] = [];
+    const out: { roll: number; topColor: 0 | 1 | 2 | null; pct: number; total: number }[] = [];
     for (let n = 0; n <= 14; n++) {
       const agg = map.get(n);
       if (!agg || agg.total === 0) {
@@ -176,26 +87,17 @@ export default function TemporalFluxoJon({
           topIdx = i as 0 | 1 | 2;
         }
       });
-      out.push({
-        roll: n,
-        topColor: topIdx,
-        pct: Math.round((topVal / agg.total) * 100),
-        total: agg.total,
-      });
+      out.push({ roll: n, topColor: topIdx, pct: Math.round((topVal / agg.total) * 100), total: agg.total });
     }
     return out;
   }, [stones]);
 
-
-
   const colorDot = (c: 0 | 1 | 2 | null) => {
     if (c === null) return <div className="h-3 w-3 rounded-full bg-slate-700/70" />;
-    if (c === 0)
-      return <div className="h-3 w-3 rounded-full bg-white ring-1 ring-emerald-500" />;
+    if (c === 0) return <div className="h-3 w-3 rounded-full bg-white ring-1 ring-emerald-500" />;
     if (c === 1) return <div className="h-3 w-3 rounded-full bg-emerald-400" />;
     return <div className="h-3 w-3 rounded-full bg-slate-900 ring-1 ring-slate-500" />;
   };
-
 
   return (
     <div className="space-y-2">
@@ -206,7 +108,6 @@ export default function TemporalFluxoJon({
             : "border-emerald-700/40 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
         }`}
       >
-
         <div className="relative flex items-center gap-3">
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
@@ -220,11 +121,7 @@ export default function TemporalFluxoJon({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span
-                className={`text-[11px] font-extrabold uppercase tracking-[0.18em] ${
-                  recInfo.isRec ? "text-rose-200" : "text-slate-200"
-                }`}
-              >
+              <span className={`text-[11px] font-extrabold uppercase tracking-[0.18em] ${recInfo.isRec ? "text-rose-200" : "text-slate-200"}`}>
                 Temporal do Fluxo Jon
               </span>
               {recInfo.isRec && (
@@ -233,7 +130,6 @@ export default function TemporalFluxoJon({
                   REC
                 </span>
               )}
-              {/* Alerta verde/vermelho ENTRAR / NÃO ENTRAR */}
               {whites.length >= 1 && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[9px] font-black uppercase tracking-wider border ${
@@ -254,40 +150,22 @@ export default function TemporalFluxoJon({
                 </span>
               )}
             </div>
-            <div
-              className={`mt-1 text-[11px] font-medium ${
-                recInfo.isRec ? "text-rose-100/90" : "text-slate-400"
-              }`}
-            >
-              {whites.length < 1
-                ? "Aguardando histórico…"
-                : `${reasonText} • há ${recInfo.sinceMin}min`}
+            <div className={`mt-1 text-[11px] font-medium ${recInfo.isRec ? "text-rose-100/90" : "text-slate-400"}`}>
+              {whites.length < 1 ? "Aguardando histórico…" : `${reasonText} • há ${recInfo.sinceMin}min`}
             </div>
           </div>
 
           <div className="hidden sm:flex flex-col items-end gap-0.5">
-            <div className="text-[9px] uppercase tracking-wider text-slate-400">
-              Intensidade
-            </div>
+            <div className="text-[9px] uppercase tracking-wider text-slate-400">Intensidade</div>
             <div className="flex gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => {
-                const level = Math.min(
-                  5,
-                  Math.max(
-                    Math.floor(recInfo.stonesSince / 6),
-                    recInfo.lossStreak,
-                  ),
-                );
+                const level = Math.min(5, Math.max(Math.floor(recInfo.stonesSince / 6), recInfo.lossStreak));
                 const on = i < level;
                 return (
                   <div
                     key={i}
                     className={`h-3 w-1.5 rounded-sm ${
-                      on
-                        ? recInfo.isRec
-                          ? "bg-rose-400"
-                          : "bg-emerald-400"
-                        : "bg-slate-700/70"
+                      on ? (recInfo.isRec ? "bg-rose-400" : "bg-emerald-400") : "bg-slate-700/70"
                     }`}
                   />
                 );
@@ -297,16 +175,13 @@ export default function TemporalFluxoJon({
         </div>
       </div>
 
-      {/* PEDRAS PUXADORAS COM 1 TIRO */}
       <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
         <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <Target className="h-3.5 w-3.5 text-cyan-300" />
           <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-cyan-200">
             Pedras Puxadoras com 1 Tiro
           </span>
-          <span className="text-[9px] text-slate-400 ml-auto">
-            cor mais puxada após cada pedra • % do dia
-          </span>
+          <span className="text-[9px] text-slate-400 ml-auto">cor mais puxada após cada pedra • % do dia</span>
         </div>
         <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-[repeat(15,minmax(0,1fr))] gap-1.5">
           {pullers.map((p) => (
@@ -315,13 +190,7 @@ export default function TemporalFluxoJon({
               className="flex flex-col items-center gap-1 rounded-md border border-slate-700/60 bg-slate-800/50 p-1.5"
               title={`Pedra ${p.roll}: ${p.total} ocorrências`}
             >
-              <Slot
-                number={p.roll}
-                color={
-                  p.roll === 0 ? "white" : p.roll <= 7 ? "green" : "black"
-                }
-                size="sm"
-              />
+              <Slot number={p.roll} color={p.roll === 0 ? "white" : p.roll <= 7 ? "green" : "black"} size="sm" />
               <div className="flex items-center gap-1">
                 {colorDot(p.topColor)}
                 <span
@@ -345,4 +214,3 @@ export default function TemporalFluxoJon({
     </div>
   );
 }
-
