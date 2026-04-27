@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
 import {
-  getBrancosDayState,
+  getBrancosTierState,
   type BaseStone,
   type WhiteTierKey,
 } from "@/lib/fluxoJon";
@@ -29,10 +29,13 @@ export default function BrancosFluxoJon({
   nowMs: number;
 }) {
   const [tab, setTab] = useState<WhiteTierKey>("100");
-  const dayState = useMemo(() => getBrancosDayState(stones, nowMs), [stones, nowMs]);
-  const evaluated = dayState.byTier[tab].currentEvaluated;
-  const wins = dayState.byTier[tab].wins;
-  const losses = dayState.byTier[tab].losses;
+  const tierState = useMemo(
+    () => getBrancosTierState(stones, nowMs, tab),
+    [stones, nowMs, tab],
+  );
+  const evaluated = tierState.currentEvaluated;
+  const wins = tierState.wins;
+  const losses = tierState.losses;
 
   return (
     <div className="rounded-md border border-white/30 bg-slate-900/60 p-2">

@@ -157,16 +157,7 @@ export function evaluateFluxoSignal(
   return "waiting";
 }
 
-export function getFluxoCoresDayState(stones: BaseStone[], nowMs: number) {
-  if (!nowMs) {
-    const emptyByTab = {
-      SG: { currentEvaluated: [], wins: 0, losses: 0, resolved: 0, accuracy: 0 },
-      G1: { currentEvaluated: [], wins: 0, losses: 0, resolved: 0, accuracy: 0 },
-      G2: { currentEvaluated: [], wins: 0, losses: 0, resolved: 0, accuracy: 0 },
-    };
-    return { currentSignals: [] as FluxoSignal[], allSignals: [] as FluxoSignal[], byTab: emptyByTab };
-  }
-
+function buildFluxoBatches(stones: BaseStone[], nowMs: number) {
   const dayStones = stonesOfBrasiliaDay(stones, nowMs);
   const batches: FluxoSignal[][] = [];
   let seed = startOfBrasiliaDayMs(nowMs);
@@ -182,32 +173,46 @@ export function getFluxoCoresDayState(stones: BaseStone[], nowMs: number) {
 
   const currentSignals = batches[batches.length - 1] ?? [];
   const allSignals = batches.flat();
+  return { dayStones, currentSignals, allSignals };
+}
 
-  const makeTabState = (tab: FluxoTab) => {
-    const currentEvaluated = currentSignals.map((signal) => ({
-      ...signal,
-      status: evaluateFluxoSignal(signal, tab, dayStones, nowMs),
-    }));
+// Avalia apenas UMA aba (SG/G1/G2). Muito mais rápido que avaliar as 3
+// quando o usuário só está olhando uma — evita travar ao trocar de aba.
+export function getFluxoCoresTabState(
+  stones: BaseStone[],
+  nowMs: number,
+  tab: FluxoTab,
+) {
+  if (!nowMs) {
+    return { currentEvaluated: [], wins: 0, losses: 0, resolved: 0, accuracy: 0 };
+  }
 
-    const resolvedHistory = allSignals
-      .map((signal) => evaluateFluxoSignal(signal, tab, dayStones, nowMs))
-      .filter((status) => status === "green" || status === "red");
+  const { dayStones, currentSignals, allSignals } = buildFluxoBatches(stones, nowMs);
 
-    const wins = resolvedHistory.filter((status) => status === "green").length;
-    const losses = resolvedHistory.filter((status) => status === "red").length;
-    const resolved = wins + losses;
-    const accuracy = resolved ? Math.round((wins / resolved) * 100) : 0;
+  const currentEvaluated = currentSignals.map((signal) => ({
+    ...signal,
+    status: evaluateFluxoSignal(signal, tab, dayStones, nowMs),
+  }));
 
-    return { currentEvaluated, wins, losses, resolved, accuracy };
-  };
+  let wins = 0;
+  let losses = 0;
+  for (const signal of allSignals) {
+    const status = evaluateFluxoSignal(signal, tab, dayStones, nowMs);
+    if (status === "green") wins++;
+    else if (status === "red") losses++;
+  }
+  const resolved = wins + losses;
+  const accuracy = resolved ? Math.round((wins / resolved) * 100) : 0;
 
+  return { currentEvaluated, wins, losses, resolved, accuracy };
+}
+
+export function getFluxoCoresDayState(stones: BaseStone[], nowMs: number) {
   return {
-    currentSignals,
-    allSignals,
     byTab: {
-      SG: makeTabState("SG"),
-      G1: makeTabState("G1"),
-      G2: makeTabState("G2"),
+      SG: getFluxoCoresTabState(stones, nowMs, "SG"),
+      G1: getFluxoCoresTabState(stones, nowMs, "G1"),
+      G2: getFluxoCoresTabState(stones, nowMs, "G2"),
     },
   };
 }
@@ -453,6 +458,25 @@ function simulateWhiteTierDay(
     wins,
     losses,
   };
+}
+
+// Avalia apenas UM tier (100/300/500/1000) — evita travar ao trocar de aba.
+export function getBrancosTierState(
+  stones: BaseStone[],
+  nowMs: number,
+  tier: WhiteTierKey,
+) {
+  if (!nowMs) {
+    return {
+      latestSignals: [] as TimedSignal[],
+      currentEvaluated: [] as Array<TimedSignal & { status: WhiteSignalStatus }>,
+      historySignals: [] as TimedSignal[],
+      historyEvaluated: [] as Array<TimedSignal & { status: WhiteSignalStatus }>,
+      wins: 0,
+      losses: 0,
+    };
+  }
+  return simulateWhiteTierDay(tier, stones, nowMs);
 }
 
 export function getBrancosDayState(stones: BaseStone[], nowMs: number) {

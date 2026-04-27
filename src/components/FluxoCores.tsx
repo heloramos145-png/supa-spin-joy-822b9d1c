@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
 import {
-  getFluxoCoresDayState,
+  getFluxoCoresTabState,
   type BaseStone,
   type FluxoTab,
 } from "@/lib/fluxoJon";
@@ -32,11 +32,14 @@ export default function FluxoCores({
   const [tab, setTab] = useState<FluxoTab>("SG");
   const [copied, setCopied] = useState(false);
 
-  const dayState = useMemo(() => getFluxoCoresDayState(stones, nowMs), [stones, nowMs]);
-  const evaluated = dayState.byTab[tab].currentEvaluated;
-  const greens = dayState.byTab[tab].wins;
-  const reds = dayState.byTab[tab].losses;
-  const accuracy = dayState.byTab[tab].accuracy;
+  const tabState = useMemo(
+    () => getFluxoCoresTabState(stones, nowMs, tab),
+    [stones, nowMs, tab],
+  );
+  const evaluated = tabState.currentEvaluated;
+  const greens = tabState.wins;
+  const reds = tabState.losses;
+  const accuracy = tabState.accuracy;
 
   function handleCopy() {
     const header = `Fluxo Jon Cores — ${tab}`;
