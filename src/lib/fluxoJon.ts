@@ -518,4 +518,3 @@ export function getBrancosDayState(stones: BaseStone[], nowMs: number) {
 
   return { byTier, allHistory };
 }
-}
