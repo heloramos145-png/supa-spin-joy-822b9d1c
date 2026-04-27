@@ -317,10 +317,10 @@ function AdminPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm(`Remover usuário ${u.email}?`)) {
-                          deleteUser(u.email);
-                          refresh();
+                          await deleteUser(u.email);
+                          await refresh();
                         }
                       }}
                       className="rounded bg-rose-500/20 px-2 py-1 text-[10px] font-bold text-rose-300 hover:bg-rose-500/30"
