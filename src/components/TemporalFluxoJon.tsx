@@ -204,92 +204,157 @@ export default function TemporalFluxoJon({
 
 
   return (
-    <div
-      className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all ${
-        recInfo.isRec
-          ? "border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-rose-500/15 shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]"
-          : "border-slate-700/70 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
-      }`}
-    >
-      {/* Glow pulsante quando em REC */}
-      {recInfo.isRec && (
-        <div className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-amber-300/10 to-transparent" />
-      )}
+    <div className="space-y-2">
+      <div
+        className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all ${
+          recInfo.isRec
+            ? "border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-rose-500/15 shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]"
+            : "border-slate-700/70 bg-gradient-to-r from-slate-900/70 via-slate-800/60 to-slate-900/70"
+        }`}
+      >
+        {recInfo.isRec && (
+          <div className="pointer-events-none absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-amber-300/10 to-transparent" />
+        )}
 
-      <div className="relative flex items-center gap-3">
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
-            recInfo.isRec
-              ? "border-amber-300/60 bg-amber-400/15 text-amber-300"
-              : "border-slate-600/70 bg-slate-800/60 text-slate-300"
-          }`}
-        >
-          {recInfo.isRec ? (
-            <Flame className="h-5 w-5 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
-          ) : (
-            <Snowflake className="h-5 w-5" />
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-[11px] font-extrabold uppercase tracking-[0.18em] ${
-                recInfo.isRec ? "text-amber-300" : "text-slate-200"
-              }`}
-            >
-              Temporal do Fluxo Jon
-            </span>
-            {recInfo.isRec && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-amber-200">
-                <Zap className="h-2.5 w-2.5" /> REC
-              </span>
-            )}
-          </div>
+        <div className="relative flex items-center gap-3">
           <div
-            className={`mt-1 text-[11px] font-medium ${
-              recInfo.isRec ? "text-amber-100/90" : "text-slate-400"
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
+              recInfo.isRec
+                ? "border-amber-300/60 bg-amber-400/15 text-amber-300"
+                : "border-slate-600/70 bg-slate-800/60 text-slate-300"
             }`}
           >
-            {whites.length < 1
-              ? "Aguardando histórico…"
-              : recInfo.isRec
-                ? `🔥 ${reasonText} • há ${recInfo.sinceMin}min`
-                : `${recInfo.stonesSince} pedras sem branco • há ${recInfo.sinceMin}min`}
+            {recInfo.isRec ? (
+              <Flame className="h-5 w-5 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
+            ) : (
+              <Snowflake className="h-5 w-5" />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`text-[11px] font-extrabold uppercase tracking-[0.18em] ${
+                  recInfo.isRec ? "text-amber-300" : "text-slate-200"
+                }`}
+              >
+                Temporal do Fluxo Jon
+              </span>
+              {recInfo.isRec && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-amber-200">
+                  <Zap className="h-2.5 w-2.5" /> REC
+                </span>
+              )}
+              {/* Alerta verde/vermelho ENTRAR / NÃO ENTRAR */}
+              {whites.length >= 1 && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-[2px] text-[9px] font-black uppercase tracking-wider border ${
+                    recInfo.isRec
+                      ? "border-rose-400/60 bg-rose-500/20 text-rose-200 animate-pulse"
+                      : "border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
+                  }`}
+                >
+                  {recInfo.isRec ? (
+                    <>
+                      <AlertTriangle className="h-2.5 w-2.5" /> NÃO ENTRAR
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-2.5 w-2.5" /> BOM PRA ENTRAR
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+            <div
+              className={`mt-1 text-[11px] font-medium ${
+                recInfo.isRec ? "text-amber-100/90" : "text-slate-400"
+              }`}
+            >
+              {whites.length < 1
+                ? "Aguardando histórico…"
+                : recInfo.isRec
+                  ? `🔥 ${reasonText} • há ${recInfo.sinceMin}min`
+                  : `${recInfo.stonesSince} pedras sem branco • há ${recInfo.sinceMin}min`}
+            </div>
+          </div>
+
+          <div className="hidden sm:flex flex-col items-end gap-0.5">
+            <div className="text-[9px] uppercase tracking-wider text-slate-400">
+              Intensidade
+            </div>
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => {
+                const level = Math.min(
+                  5,
+                  Math.max(
+                    Math.floor(recInfo.stonesSince / 6),
+                    recInfo.lossStreak,
+                  ),
+                );
+                const on = i < level;
+                return (
+                  <div
+                    key={i}
+                    className={`h-3 w-1.5 rounded-sm ${
+                      on
+                        ? recInfo.isRec
+                          ? "bg-amber-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]"
+                          : "bg-slate-400"
+                        : "bg-slate-700/70"
+                    }`}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Mini barra de intensidade */}
-        <div className="hidden sm:flex flex-col items-end gap-0.5">
-          <div className="text-[9px] uppercase tracking-wider text-slate-400">
-            Intensidade
-          </div>
-          <div className="flex gap-0.5">
-            {Array.from({ length: 5 }).map((_, i) => {
-              const level = Math.min(
-                5,
-                Math.max(
-                  Math.floor(recInfo.stonesSince / 6),
-                  recInfo.lossStreak,
-                ),
-              );
-              const on = i < level;
-              return (
-                <div
-                  key={i}
-                  className={`h-3 w-1.5 rounded-sm ${
-                    on
-                      ? recInfo.isRec
-                        ? "bg-amber-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]"
-                        : "bg-slate-400"
-                      : "bg-slate-700/70"
+      {/* PEDRAS PUXADORAS COM 1 TIRO */}
+      <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Target className="h-3.5 w-3.5 text-cyan-300" />
+          <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-cyan-200">
+            Pedras Puxadoras com 1 Tiro
+          </span>
+          <span className="text-[9px] text-slate-400 ml-auto">
+            cor mais puxada após cada pedra • % do dia
+          </span>
+        </div>
+        <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-15 gap-1.5">
+          {pullers.map((p) => (
+            <div
+              key={p.roll}
+              className="flex flex-col items-center gap-1 rounded-md border border-slate-700/60 bg-slate-800/50 p-1.5"
+              title={`Pedra ${p.roll}: ${p.total} ocorrências`}
+            >
+              <div
+                className={`h-6 w-6 rounded-md flex items-center justify-center text-[11px] font-black ring-1 ring-slate-600 ${rollBg(p.roll)}`}
+              >
+                {p.roll}
+              </div>
+              <div className="flex items-center gap-1">
+                {colorDot(p.topColor)}
+                <span
+                  className={`text-[10px] font-bold ${
+                    p.topColor === null
+                      ? "text-slate-500"
+                      : p.pct >= 60
+                        ? "text-emerald-300"
+                        : p.pct >= 45
+                          ? "text-amber-300"
+                          : "text-slate-300"
                   }`}
-                />
-              );
-            })}
-          </div>
+                >
+                  {p.total === 0 ? "—" : `${p.pct}%`}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
+
