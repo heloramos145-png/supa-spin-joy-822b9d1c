@@ -135,6 +135,74 @@ export default function TemporalFluxoJon({
       ? `${recInfo.stonesSince} pedras sem branco`
       : `${recInfo.stonesSince} pedras sem branco`;
 
+  // === PEDRAS PUXADORAS COM 1 TIRO ===
+  // Para cada número 0..14, olha a próxima pedra que veio depois e
+  // computa qual cor mais "puxou" (0=branco, 1=verde, 2=preto) e a % no dia.
+  const pullers = useMemo(() => {
+    const ordered = [...stones].sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    type Agg = { total: number; counts: [number, number, number] };
+    const map = new Map<number, Agg>();
+    for (let i = 0; i < ordered.length - 1; i++) {
+      const cur = ordered[i];
+      const next = ordered[i + 1];
+      if (cur.roll == null || cur.roll < 0 || cur.roll > 14) continue;
+      const agg = map.get(cur.roll) ?? { total: 0, counts: [0, 0, 0] };
+      agg.total += 1;
+      const c = next.color === 0 ? 0 : next.color === 1 ? 1 : 2;
+      agg.counts[c] += 1;
+      map.set(cur.roll, agg);
+    }
+    const out: {
+      roll: number;
+      topColor: 0 | 1 | 2 | null;
+      pct: number;
+      total: number;
+    }[] = [];
+    for (let n = 0; n <= 14; n++) {
+      const agg = map.get(n);
+      if (!agg || agg.total === 0) {
+        out.push({ roll: n, topColor: null, pct: 0, total: 0 });
+        continue;
+      }
+      let topIdx: 0 | 1 | 2 = 0;
+      let topVal = -1;
+      (agg.counts as number[]).forEach((v, i) => {
+        if (v > topVal) {
+          topVal = v;
+          topIdx = i as 0 | 1 | 2;
+        }
+      });
+      out.push({
+        roll: n,
+        topColor: topIdx,
+        pct: Math.round((topVal / agg.total) * 100),
+        total: agg.total,
+      });
+    }
+    return out;
+  }, [stones]);
+
+  // Cor da pedra (número) no Double da Blaze/Jonbet:
+  // 0 = branco; 1..7 = vermelho; 8..14 = preto. Usamos só pra tile.
+  const rollBg = (n: number) =>
+    n === 0
+      ? "bg-white text-slate-900"
+      : n <= 7
+        ? "bg-rose-600 text-white"
+        : "bg-slate-900 text-white";
+
+  const colorDot = (c: 0 | 1 | 2 | null) => {
+    if (c === null) return <div className="h-3 w-3 rounded-full bg-slate-700/70" />;
+    if (c === 0)
+      return <div className="h-3 w-3 rounded-full bg-white ring-1 ring-emerald-500" />;
+    if (c === 1) return <div className="h-3 w-3 rounded-full bg-emerald-400" />;
+    return <div className="h-3 w-3 rounded-full bg-slate-900 ring-1 ring-slate-500" />;
+  };
+
+
   return (
     <div
       className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all ${
