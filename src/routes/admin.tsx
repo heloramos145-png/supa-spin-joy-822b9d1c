@@ -235,9 +235,9 @@ function AdminPage() {
                         </span>
                         {revoked ? (
                           <button
-                            onClick={() => {
-                              unrevokeCode(c.code);
-                              refresh();
+                            onClick={async () => {
+                              await unrevokeCode(c.code);
+                              await refresh();
                             }}
                             className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300 hover:bg-emerald-500/30"
                           >
@@ -245,10 +245,10 @@ function AdminPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Revogar código ${c.code}? Quem usou ele perde acesso.`)) {
-                                revokeCode(c.code);
-                                refresh();
+                                await revokeCode(c.code);
+                                await refresh();
                               }
                             }}
                             className="rounded bg-amber-500/20 px-2 py-0.5 text-amber-300 hover:bg-amber-500/30"
@@ -257,10 +257,10 @@ function AdminPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Apagar código ${c.code}?`)) {
-                              deleteCode(c.code);
-                              refresh();
+                              await deleteCode(c.code);
+                              await refresh();
                             }
                           }}
                           className="rounded bg-rose-500/20 px-2 py-0.5 text-rose-300 hover:bg-rose-500/30"
