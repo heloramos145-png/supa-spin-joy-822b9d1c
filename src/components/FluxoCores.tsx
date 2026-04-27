@@ -212,8 +212,69 @@ export default function FluxoCores({
     [signals, tab, stones, nowMs],
   );
 
-  const greens = evaluated.filter((s) => s.status === "green").length;
-  const reds = evaluated.filter((s) => s.status === "red").length;
+  // ===== Placar acumulado do DIA (por aba) =====
+  // Cada vez que um sinal fica "green" ou "red", grava no storage do dia.
+  // Placar = soma de todos os sinais resolvidos do dia, mesmo de listas
+  // anteriores que já foram regeneradas.
+  const SCORE_KEY = "fluxo-cores:score:v2";
+  type ScoreEntry = { timeMs: number; tab: Tab; status: "green" | "red" };
+  type ScoreStore = { dayKey: string; entries: ScoreEntry[] };
+
+  function brasiliaDayKey(ms: number): string {
+    const d = new Date(ms - 3 * 60 * 60 * 1000);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+  }
+
+  const [scoreStore, setScoreStore] = useState<ScoreStore>({ dayKey: "", entries: [] });
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      const raw = window.localStorage.getItem(SCORE_KEY);
+      if (raw) setScoreStore(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (!hydrated || !nowMs) return;
+    const today = brasiliaDayKey(nowMs);
+    setScoreStore((prev) => {
+      let next = prev;
+      // virou o dia → zera
+      if (prev.dayKey !== today) {
+        next = { dayKey: today, entries: [] };
+      }
+      let changed = next !== prev;
+      const entries = [...next.entries];
+      for (const s of evaluated) {
+        if (s.status !== "green" && s.status !== "red") continue;
+        const existing = entries.find(
+          (e) => e.timeMs === s.timeMs && e.tab === tab,
+        );
+        if (!existing) {
+          entries.push({ timeMs: s.timeMs, tab, status: s.status });
+          changed = true;
+        } else if (existing.status !== s.status) {
+          existing.status = s.status;
+          changed = true;
+        }
+      }
+      if (!changed) return prev;
+      const updated = { dayKey: today, entries };
+      try {
+        window.localStorage.setItem(SCORE_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  }, [evaluated, hydrated, nowMs, tab]);
+
+  const dayEntries = scoreStore.entries.filter((e) => e.tab === tab);
+  const greens = dayEntries.filter((e) => e.status === "green").length;
+  const reds = dayEntries.filter((e) => e.status === "red").length;
   const resolved = greens + reds;
   const accuracy = resolved ? Math.round((greens / resolved) * 100) : 0;
 
