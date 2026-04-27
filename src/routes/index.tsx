@@ -116,6 +116,111 @@ type GridRow = {
   }>;
 };
 
+function buildRowsForGrid(
+  results: DoubleRow[],
+  now: Date | null,
+  displayCols: number,
+  stonesPerMinute: number,
+): GridRow[] {
+  if (results.length === 0) {
+    const ref = now ?? new Date();
+    const brasiliaMs = ref.getTime() - 3 * 60 * 60 * 1000;
+    const minuteStartMs = Math.floor(brasiliaMs / 60000) * 60000;
+    const anchor = new Date(
+      minuteStartMs - (new Date(minuteStartMs).getUTCMinutes() % 10) * 60000,
+    );
+
+    return Array.from({ length: 6 }, (_, rowIdx) => {
+      const rowStart = new Date(anchor);
+      rowStart.setUTCMinutes(anchor.getUTCMinutes() - rowIdx * 10);
+
+      return {
+        rowKey: `empty-${rowIdx}`,
+        cells: Array.from({ length: displayCols }, (_, col) => {
+          const md = new Date(rowStart);
+          md.setUTCMinutes(rowStart.getUTCMinutes() + col);
+          return {
+            key: `${rowIdx}-${col}`,
+            timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
+            items: [] as DoubleRow[],
+          };
+        }),
+      };
+    });
+  }
+
+  const toBrasilia = (iso: string) =>
+    new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
+  const minuteKeyOf = (iso: string) => {
+    const d = toBrasilia(iso);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  };
+
+  const byMinute = new Map<string, DoubleRow[]>();
+  for (const r of results) {
+    const k = minuteKeyOf(r.created_at);
+    const list = byMinute.get(k) ?? [];
+    list.push(r);
+    byMinute.set(k, list);
+  }
+
+  for (const list of byMinute.values()) {
+    list.sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+  }
+
+  const newest = toBrasilia(results[results.length - 1].created_at);
+  const oldest = toBrasilia(results[0].created_at);
+
+  const anchorRowStart = new Date(
+    Date.UTC(
+      newest.getUTCFullYear(),
+      newest.getUTCMonth(),
+      newest.getUTCDate(),
+      newest.getUTCHours(),
+      Math.floor(newest.getUTCMinutes() / 10) * 10,
+    ),
+  );
+  const oldestRowStart = new Date(
+    Date.UTC(
+      oldest.getUTCFullYear(),
+      oldest.getUTCMonth(),
+      oldest.getUTCDate(),
+      oldest.getUTCHours(),
+      Math.floor(oldest.getUTCMinutes() / 10) * 10,
+    ),
+  );
+
+  const rowCount = Math.max(
+    6,
+    Math.ceil(
+      (anchorRowStart.getTime() - oldestRowStart.getTime()) / (10 * 60 * 1000),
+    ) + 1,
+  );
+
+  return Array.from({ length: rowCount }, (_, rowIdx) => {
+    const rowStart = new Date(anchorRowStart);
+    rowStart.setUTCMinutes(anchorRowStart.getUTCMinutes() - rowIdx * 10);
+
+    return {
+      rowKey: `${rowStart.getTime()}`,
+      cells: Array.from({ length: displayCols }, (_, col) => {
+        const md = new Date(rowStart);
+        md.setUTCMinutes(rowStart.getUTCMinutes() + col);
+        const key = `${md.getUTCFullYear()}-${pad2(md.getUTCMonth() + 1)}-${pad2(md.getUTCDate())} ${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`;
+
+        return {
+          key,
+          timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
+          items: (byMinute.get(key) ?? []).slice(0, stonesPerMinute),
+        };
+      }),
+    };
+  });
+}
+
 function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   const timeDiff =
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
@@ -354,6 +459,25 @@ function Index() {
     return Math.floor(now.getTime() / 60000) * 60000;
   }, [now]);
 
+  const displayCols = 10;
+  const stonesPerMinute = STONES_PER_MINUTE;
+  const cellWidthClass = isMobile ? "w-[86px]" : "w-[92px]";
+  const gridMinWidthClass = isMobile ? "min-w-[912px]" : "min-w-[972px]";
+  const FLUXO_W = 280;
+  const rowsForGrid = useMemo(
+    () => buildRowsForGrid(results, now, displayCols, stonesPerMinute),
+    [results, now, displayCols, stonesPerMinute],
+  );
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+    [],
+  );
+
 
   // Não renderiza nada até a auth ser confirmada — evita o flash do site
   // antes de redirecionar pro /login.
@@ -398,131 +522,7 @@ function Index() {
         {/* Relógio e badge da última pedra movidos para dentro do histórico */}
 
         {/* Histórico — 10 colunas fixas (00..09), 2 pedras por minuto, mín 6 linhas */}
-        {(() => {
-          const displayCols = 10;
-          const stonesPerMinute = STONES_PER_MINUTE;
-          const cellWidthClass = isMobile ? "w-[86px]" : "w-[92px]";
-          const gridMinWidthClass = isMobile ? "min-w-[912px]" : "min-w-[972px]";
-          const FLUXO_W = 280;
-
-          // Monta minuteRows direto a partir de `results` no formato da spec
-          const rowsForGrid = (() => {
-            if (results.length === 0) {
-              // sem dados ainda: cria 6 linhas vazias ancoradas no minuto atual de Brasília
-              const ref = now ?? new Date();
-              const brasiliaMs = ref.getTime() - 3 * 60 * 60 * 1000;
-              const minuteStartMs = Math.floor(brasiliaMs / 60000) * 60000;
-              const anchor = new Date(
-                minuteStartMs - (new Date(minuteStartMs).getUTCMinutes() % 10) * 60000,
-              );
-              return Array.from({ length: 6 }, (_, rowIdx) => {
-                const rowStart = new Date(anchor);
-                rowStart.setUTCMinutes(anchor.getUTCMinutes() - rowIdx * 10);
-                return {
-                  rowKey: `empty-${rowIdx}`,
-                  cells: Array.from({ length: displayCols }, (_, col) => {
-                    const md = new Date(rowStart);
-                    md.setUTCMinutes(rowStart.getUTCMinutes() + col);
-                    return {
-                      key: `${rowIdx}-${col}`,
-                      timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
-                      items: [] as DoubleRow[],
-                    };
-                  }),
-                };
-              });
-            }
-
-            // Em Brasília (UTC-3): cada pedra ganha um minute_key "YYYY-MM-DD HH:MM"
-            const toBrasilia = (iso: string) =>
-              new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
-            const minuteKeyOf = (iso: string) => {
-              const d = toBrasilia(iso);
-              return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
-            };
-
-            const byMinute = new Map<string, DoubleRow[]>();
-            for (const r of results) {
-              const k = minuteKeyOf(r.created_at);
-              const list = byMinute.get(k) ?? [];
-              list.push(r);
-              byMinute.set(k, list);
-            }
-            for (const list of byMinute.values()) {
-              list.sort(
-                (a, b) =>
-                  new Date(a.created_at).getTime() -
-                  new Date(b.created_at).getTime(),
-              );
-            }
-
-            // Mais novo (results já está asc, então pega o último)
-            const newest = toBrasilia(results[results.length - 1].created_at);
-            const oldest = toBrasilia(results[0].created_at);
-
-            const anchorRowStart = new Date(
-              Date.UTC(
-                newest.getUTCFullYear(),
-                newest.getUTCMonth(),
-                newest.getUTCDate(),
-                newest.getUTCHours(),
-                Math.floor(newest.getUTCMinutes() / 10) * 10,
-              ),
-            );
-            const oldestRowStart = new Date(
-              Date.UTC(
-                oldest.getUTCFullYear(),
-                oldest.getUTCMonth(),
-                oldest.getUTCDate(),
-                oldest.getUTCHours(),
-                Math.floor(oldest.getUTCMinutes() / 10) * 10,
-              ),
-            );
-
-            const rowCount = Math.max(
-              6,
-              Math.ceil(
-                (anchorRowStart.getTime() - oldestRowStart.getTime()) /
-                  (10 * 60 * 1000),
-              ) + 1,
-            );
-
-            return Array.from({ length: rowCount }, (_, rowIdx) => {
-              const rowStart = new Date(anchorRowStart);
-              rowStart.setUTCMinutes(anchorRowStart.getUTCMinutes() - rowIdx * 10);
-              return {
-                rowKey: `${rowStart.getTime()}`,
-                cells: Array.from({ length: displayCols }, (_, col) => {
-                  const md = new Date(rowStart);
-                  md.setUTCMinutes(rowStart.getUTCMinutes() + col);
-                  const key = `${md.getUTCFullYear()}-${pad2(md.getUTCMonth() + 1)}-${pad2(md.getUTCDate())} ${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`;
-                  return {
-                    key,
-                    timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
-                    items: (byMinute.get(key) ?? []).slice(0, stonesPerMinute),
-                  };
-                }),
-              };
-            });
-          })();
-
-          const renderEmptyStone = (key: string, timeLabel: string) => (
-            <div key={key} className="flex flex-col items-center gap-0.5">
-              <div className="h-8 w-8 rounded-full border border-white/20 bg-white/5" />
-              <span className="text-[9px] font-bold text-white/70 tracking-wider bg-white/10 px-1.5 py-0.5 rounded-sm">
-                {timeLabel}
-              </span>
-            </div>
-          );
-
-          const todayLabel = new Date().toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          });
-
-          return (
-            <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
               <div className="flex items-start gap-2">
                 <div
                   className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
@@ -615,8 +615,7 @@ function Index() {
                 </div>
               </div>
             </div>
-          );
-        })()}
+          </div>
 
 
         {loading && (
