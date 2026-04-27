@@ -625,6 +625,7 @@ function Index() {
                 <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
                   <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
                   <BrancosFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
+                  <CorrecaoBrancos stones={results} nowMs={now ? now.getTime() : 0} />
                 </div>
               </div>
             </div>
