@@ -23,6 +23,7 @@ export type ActivationCode = {
   usedBy: string[]; // emails que usaram
   maxUses: number; // 0 = ilimitado
   note?: string;
+  revoked?: boolean;
 };
 
 export type RegisteredUser = {
