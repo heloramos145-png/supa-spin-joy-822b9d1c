@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
 import BrancosFluxoJon from "@/components/BrancosFluxoJon";
+import CorrecaoBrancos from "@/components/CorrecaoBrancos";
 import TemporalFluxoJon from "@/components/TemporalFluxoJon";
 import Slot from "@/components/Slot";
 import DrawingOverlay from "@/components/DrawingOverlay";
