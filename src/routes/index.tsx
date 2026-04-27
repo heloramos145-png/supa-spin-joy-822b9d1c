@@ -6,6 +6,7 @@ import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket
 import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
+import BrancosFluxoJon from "@/components/BrancosFluxoJon";
 import Slot from "@/components/Slot";
 import DrawingOverlay from "@/components/DrawingOverlay";
 export const Route = createFileRoute("/")({
@@ -615,9 +616,10 @@ function Index() {
                   </div>
                 </div>
 
-                {/* Painel Fluxo Jon Cores */}
-                <div style={{ width: FLUXO_W, flexShrink: 0 }}>
+                {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
+                <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
                   <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
+                  <BrancosFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
                 </div>
               </div>
             </div>
