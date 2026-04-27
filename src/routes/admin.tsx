@@ -45,9 +45,10 @@ function AdminPage() {
   const [maxUses, setMaxUses] = useState(1);
   const [note, setNote] = useState("");
 
-  function refresh() {
-    setCodes(listCodes());
-    setUsers(listUsers());
+  async function refresh() {
+    const [c, u] = await Promise.all([listCodes(), listUsers()]);
+    setCodes(c);
+    setUsers(u);
   }
 
   useEffect(() => {
@@ -60,15 +61,14 @@ function AdminPage() {
       navigate({ to: "/" });
       return;
     }
-    refresh();
-    setReady(true);
+    refresh().then(() => setReady(true));
   }, [navigate]);
 
   if (!ready) return null;
 
-  function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    createCode({
+    await createCode({
       code: customCode || undefined,
       daysValid: days,
       maxUses,
@@ -76,7 +76,7 @@ function AdminPage() {
     });
     setCustomCode("");
     setNote("");
-    refresh();
+    await refresh();
   }
 
   function logout() {
