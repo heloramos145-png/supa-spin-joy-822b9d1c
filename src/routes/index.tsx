@@ -438,7 +438,7 @@ function Index() {
         />
 
         {/* Temporal do Fluxo Jon — surf de cores + REC de branco */}
-        <TemporalFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
+        <TemporalFluxoJon stones={results} nowMs={nowMinuteMs} />
 
         {/* Pedra antecipada removida a pedido do usuário */}
 
@@ -656,9 +656,9 @@ function Index() {
 
                 {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
                 <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
-                  <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
-                  <BrancosFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
-                  <CorrecaoBrancos stones={results} nowMs={now ? now.getTime() : 0} />
+                  <FluxoCores stones={results} nowMs={nowMinuteMs} />
+                  <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
+                  <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
                 </div>
               </div>
             </div>
