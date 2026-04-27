@@ -150,19 +150,45 @@ export default function FluxoCores({
 }) {
   const [tab, setTab] = useState<Tab>("SG");
 
-  // Lista FIXA: gerada uma vez a partir do "agora" e só regenerada
-  // quando TODOS os 35 sinais terminaram (janela passou). Não muda a cada tick.
-  const [signals, setSignals] = useState<Signal[]>([]);
+  // Lista FIXA: gerada uma vez, persistida em localStorage. Só regenera
+  // quando TODOS os 35 sinais terminaram. Sobrevive a refresh / fechar aba.
+  const STORAGE_KEY = "fluxo-cores:signals:v1";
+  const [signals, setSignals] = useState<Signal[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Signal[];
+      if (Array.isArray(parsed) && parsed.length === SIGNALS_COUNT) return parsed;
+    } catch {
+      // ignore
+    }
+    return [];
+  });
 
   useEffect(() => {
     if (!nowMs) return;
     setSignals((prev) => {
       // Primeira geração
-      if (prev.length === 0) return buildSignals(nowMs);
+      if (prev.length === 0) {
+        const next = buildSignals(nowMs);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      }
       // Só regenera se todos os 35 sinais já fecharam (janela máxima = +2min p/ G2)
       const allDone = prev.every((s) => nowMs >= s.timeMs + 120000);
       if (allDone) {
-        return buildSignals(prev[prev.length - 1].timeMs);
+        const next = buildSignals(prev[prev.length - 1].timeMs);
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
       }
       return prev;
     });
