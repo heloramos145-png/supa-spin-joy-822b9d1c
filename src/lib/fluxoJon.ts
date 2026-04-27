@@ -494,13 +494,14 @@ function simulateWhiteTierDay(
   }
 
   const uniqueHistory = uniqueSignals(history);
+  const whiteTimes = getWhiteTimesIndex(dayStones);
   const currentEvaluated = latestSignals.map((signal) => ({
     ...signal,
-    status: evaluateWhiteSignal(signal.timeMs, dayStones, nowMs),
+    status: evaluateWhiteSignalFast(signal.timeMs, whiteTimes, nowMs),
   }));
   const historyEvaluated = uniqueHistory.map((signal) => ({
     ...signal,
-    status: evaluateWhiteSignal(signal.timeMs, dayStones, nowMs),
+    status: evaluateWhiteSignalFast(signal.timeMs, whiteTimes, nowMs),
   }));
 
   const wins = historyEvaluated.filter(
