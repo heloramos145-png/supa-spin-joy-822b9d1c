@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { jonbetSupabase as supabase } from "@/integrations/supabase/jonbet";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
 import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
 import { useIsMobile } from "@/hooks/use-mobile";
