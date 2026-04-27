@@ -6,6 +6,7 @@ import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket
 import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
+import BrancosFluxoJon from "@/components/BrancosFluxoJon";
 import Slot from "@/components/Slot";
 import DrawingOverlay from "@/components/DrawingOverlay";
 export const Route = createFileRoute("/")({
@@ -381,7 +382,6 @@ function Index() {
               <span className="text-white">FLUXO</span>
               <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">JON</span>
             </h1>
-            <p className="text-xs text-slate-400">{results.length} rodadas hoje</p>
           </div>
         </div>
       </header>
@@ -402,22 +402,7 @@ function Index() {
           countdown={nextRoundIn}
         />
 
-        {/* Pedra antecipada via WebSocket — só aparece com aba aberta */}
-        {livePreview && livePreview.status === "rolling" && (
-          <div className="flex items-center justify-between rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm animate-pulse">
-            <span className="font-bold uppercase tracking-wide text-amber-300">
-              ⚡ Antecipada
-            </span>
-            <span className="font-mono text-base font-extrabold text-amber-200">
-              {livePreview.roll} •{" "}
-              {livePreview.color === 0
-                ? "BRANCO"
-                : livePreview.color === 1
-                ? "VERDE"
-                : "PRETO"}
-            </span>
-          </div>
-        )}
+        {/* Pedra antecipada removida a pedido do usuário */}
 
         {/* Relógio e badge da última pedra movidos para dentro do histórico */}
 
@@ -631,9 +616,10 @@ function Index() {
                   </div>
                 </div>
 
-                {/* Painel Fluxo Jon Cores */}
-                <div style={{ width: FLUXO_W, flexShrink: 0 }}>
+                {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
+                <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
                   <FluxoCores stones={results} nowMs={now ? now.getTime() : 0} />
+                  <BrancosFluxoJon stones={results} nowMs={now ? now.getTime() : 0} />
                 </div>
               </div>
             </div>
