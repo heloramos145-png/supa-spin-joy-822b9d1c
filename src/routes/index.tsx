@@ -11,6 +11,7 @@ import CorrecaoBrancos from "@/components/CorrecaoBrancos";
 import TemporalFluxoJon from "@/components/TemporalFluxoJon";
 import Slot from "@/components/Slot";
 import DrawingOverlay from "@/components/DrawingOverlay";
+import { getBrancosDayState } from "@/lib/fluxoJon";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -476,6 +477,10 @@ function Index() {
       }),
     [],
   );
+  const brancosDayState = useMemo(
+    () => getBrancosDayState(results, nowMinuteMs),
+    [results, nowMinuteMs],
+  );
 
 
   // Não renderiza nada até a auth ser confirmada — evita o flash do site
@@ -514,7 +519,7 @@ function Index() {
         />
 
         {/* Temporal do Fluxo Jon — surf de cores + REC de branco */}
-        <TemporalFluxoJon stones={results} nowMs={nowMinuteMs} />
+        <TemporalFluxoJon stones={results} nowMs={nowMinuteMs} brancosDayState={brancosDayState} />
 
         {/* Pedra antecipada removida a pedido do usuário */}
 
@@ -609,8 +614,8 @@ function Index() {
             {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
             <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
               <FluxoCores stones={results} nowMs={nowMinuteMs} />
-              <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
-              <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
+              <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} dayState={brancosDayState} />
+              <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} dayState={brancosDayState} />
             </div>
           </div>
         </div>
