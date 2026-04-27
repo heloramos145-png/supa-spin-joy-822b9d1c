@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
 import Slot from "@/components/Slot";
+import DrawingOverlay from "@/components/DrawingOverlay";
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
