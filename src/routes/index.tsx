@@ -523,10 +523,10 @@ function Index() {
 
         {/* Histórico — 10 colunas fixas (00..09), 2 pedras por minuto, mín 6 linhas */}
         <div className="overflow-x-auto">
-              <div className="flex items-start gap-2">
-                <div
-                  className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
-                >
+          <div className="flex items-start gap-2">
+            <div
+              className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
+            >
                   {/* Barra de data + relógio Brasília */}
                   <div
                     className="flex items-center justify-between gap-3 px-3 py-2"
@@ -605,17 +605,16 @@ function Index() {
                       </div>
                     ))}
                   </div>
-                </div>
+            </div>
 
-                {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
-                <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
-                  <FluxoCores stones={results} nowMs={nowMinuteMs} />
-                  <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
-                  <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
-                </div>
-              </div>
+            {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
+            <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
+              <FluxoCores stones={results} nowMs={nowMinuteMs} />
+              <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
+              <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
             </div>
           </div>
+        </div>
 
 
         {loading && (
