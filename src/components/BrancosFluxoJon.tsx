@@ -33,6 +33,10 @@ function brasiliaMinute(ms: number): number {
 function brasiliaHour(ms: number): number {
   return brasiliaDate(ms).getUTCHours();
 }
+function brasiliaDayKey(ms: number): string {
+  const d = brasiliaDate(ms);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+}
 function fmtHM(ms: number): string {
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -101,6 +105,11 @@ type Forecast = {
   baseInfo: string;
   signals: { timeMs: number; label: string }[];
 };
+
+type StoredSignals = Record<Tier["key"], { timeMs: number; label: string }[]>;
+type SignalsStore = { dayKey: string; signals: StoredSignals };
+type HistoryEntry = { tier: Tier["key"]; timeMs: number };
+type HistoryStore = { dayKey: string; entries: HistoryEntry[] };
 
 type SignalStatus = "pending" | "waiting" | "win-latado" | "win-margem" | "loss";
 
@@ -237,9 +246,6 @@ export default function BrancosFluxoJon({
     return minutesToSignals(pickThreeMinutes(baseMinute, top), nowMs);
   }
 
-  // ---------- sinais persistidos por aba ----------
-  type StoredSignals = Record<Tier["key"], { timeMs: number; label: string }[]>;
-
   // SSR-safe: começa vazio, hidrata do localStorage no cliente.
   const [storedSignals, setStoredSignals] = useState<StoredSignals>({
     "100": [],
@@ -253,13 +259,28 @@ export default function BrancosFluxoJon({
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as StoredSignals;
-        setStoredSignals({
-          "100": parsed["100"] ?? [],
-          "300": parsed["300"] ?? [],
-          "500": parsed["500"] ?? [],
-          "1000": parsed["1000"] ?? [],
-        });
+        const parsed = JSON.parse(raw) as StoredSignals | SignalsStore;
+        const today = brasiliaDayKey(Date.now());
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          "signals" in parsed &&
+          parsed.dayKey === today
+        ) {
+          setStoredSignals({
+            "100": parsed.signals["100"] ?? [],
+            "300": parsed.signals["300"] ?? [],
+            "500": parsed.signals["500"] ?? [],
+            "1000": parsed.signals["1000"] ?? [],
+          });
+        } else {
+          setStoredSignals({
+            "100": (parsed as StoredSignals)["100"] ?? [],
+            "300": (parsed as StoredSignals)["300"] ?? [],
+            "500": (parsed as StoredSignals)["500"] ?? [],
+            "1000": (parsed as StoredSignals)["1000"] ?? [],
+          });
+        }
       }
     } catch {
       // ignore
@@ -274,8 +295,14 @@ export default function BrancosFluxoJon({
   const HISTORY_KEY = "brancos-fluxo-jon:history:v1";
   function appendHistory(tier: Tier["key"], items: { timeMs: number }[]) {
     try {
+      const today = brasiliaDayKey(nowMs || Date.now());
       const raw = window.localStorage.getItem(HISTORY_KEY);
-      const cur = raw ? (JSON.parse(raw) as { tier: Tier["key"]; timeMs: number }[]) : [];
+      const parsed = raw ? (JSON.parse(raw) as HistoryStore | HistoryEntry[]) : [];
+      const cur = Array.isArray(parsed)
+        ? parsed
+        : parsed.dayKey === today
+          ? parsed.entries
+          : [];
       let changed = false;
       for (const it of items) {
         if (!cur.some((h) => h.tier === tier && h.timeMs === it.timeMs)) {
@@ -283,7 +310,12 @@ export default function BrancosFluxoJon({
           changed = true;
         }
       }
-      if (changed) window.localStorage.setItem(HISTORY_KEY, JSON.stringify(cur));
+      if (changed) {
+        window.localStorage.setItem(
+          HISTORY_KEY,
+          JSON.stringify({ dayKey: today, entries: cur } satisfies HistoryStore),
+        );
+      }
     } catch {
       // ignore
     }
@@ -293,6 +325,7 @@ export default function BrancosFluxoJon({
   useEffect(() => {
     if (!nowMs || !hydrated) return;
     setStoredSignals((prev) => {
+      const today = brasiliaDayKey(nowMs);
       let changed = false;
       const next: StoredSignals = { ...prev };
       (["100", "300", "500", "1000"] as Tier["key"][]).forEach((k) => {
@@ -321,7 +354,10 @@ export default function BrancosFluxoJon({
       });
       if (!changed) return prev;
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        window.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ dayKey: today, signals: next } satisfies SignalsStore),
+        );
       } catch {
         // ignore
       }
