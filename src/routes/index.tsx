@@ -399,6 +399,14 @@ function Index() {
     return remaining;
   }, [latestResult, now]);
 
+  // Clock arredondado pro minuto — usado pelos componentes pesados
+  // (FluxoCores, Brancos, Temporal) que recalculam todo o dia.
+  // Sem isso, eles rodam a cada 1s e travam a página.
+  const nowMinuteMs = useMemo(() => {
+    if (!now) return 0;
+    return Math.floor(now.getTime() / 60000) * 60000;
+  }, [now]);
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
