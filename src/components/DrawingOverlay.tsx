@@ -183,33 +183,35 @@ export default function DrawingOverlay() {
         />
       );
     }
-    // label WIN / LOSS
-    const isWin = sh.text === "WIN";
-    return (
-      <g key={key}>
-        <rect
-          x={sh.x - 38}
-          y={sh.y - 18}
-          width={76}
-          height={36}
-          rx={8}
-          fill={isWin ? "#10b981" : "#ef4444"}
-          stroke="#0f172a"
-          strokeWidth={2}
-        />
-        <text
-          x={sh.x}
-          y={sh.y + 6}
-          textAnchor="middle"
-          fontSize={20}
-          fontWeight={900}
-          fontFamily="system-ui, sans-serif"
-          fill="#0f172a"
-        >
-          {sh.text}
-        </text>
-      </g>
-    );
+    if (sh.kind === "label") {
+      const isWin = sh.text === "WIN";
+      return (
+        <g key={key}>
+          <rect
+            x={sh.x - 38}
+            y={sh.y - 18}
+            width={76}
+            height={36}
+            rx={8}
+            fill={isWin ? "#10b981" : "#ef4444"}
+            stroke="#0f172a"
+            strokeWidth={2}
+          />
+          <text
+            x={sh.x}
+            y={sh.y + 6}
+            textAnchor="middle"
+            fontSize={20}
+            fontWeight={900}
+            fontFamily="system-ui, sans-serif"
+            fill="#0f172a"
+          >
+            {sh.text}
+          </text>
+        </g>
+      );
+    }
+    return null;
   }
 
   return (
