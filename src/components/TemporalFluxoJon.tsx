@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Flame, Snowflake, Zap, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Activity, Target, AlertTriangle, CheckCircle2 } from "lucide-react";
+import Slot from "@/components/Slot";
 
 export type TemporalStone = {
   id: string | number;
