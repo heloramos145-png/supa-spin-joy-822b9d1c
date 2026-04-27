@@ -229,10 +229,11 @@ export default function DrawingOverlay() {
 
       {open && (
         <div className="fixed inset-0 z-50">
-          {/* Camada SVG */}
+          {/* Camada SVG transparente — não escurece nada atrás */}
           <svg
             ref={svgRef}
-            className="absolute inset-0 h-full w-full bg-slate-950/40 backdrop-blur-[1px] touch-none"
+            className="absolute inset-0 h-full w-full touch-none"
+            style={{ background: "transparent" }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
