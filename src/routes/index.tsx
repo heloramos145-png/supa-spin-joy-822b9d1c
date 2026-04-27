@@ -220,7 +220,7 @@ function Index() {
       .sort(compareByCreatedAtAsc));
     setResults(nextResults);
     setLoading(false);
-    setSyncState((s) => ({ ...s, lastError: null, status: "success" }));
+    setSyncState((s) => ({ ...s, lastError: null, status: "ok" }));
   }
 
   // Sync da Jonbet roda no servidor (cron pg_cron / Vercel cron),
