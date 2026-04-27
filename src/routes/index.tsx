@@ -381,7 +381,6 @@ function Index() {
               <span className="text-white">FLUXO</span>
               <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">JON</span>
             </h1>
-            <p className="text-xs text-slate-400">{results.length} rodadas hoje</p>
           </div>
         </div>
       </header>
