@@ -152,7 +152,9 @@ function Index() {
   const isMobile = useIsMobile();
   const [results, setResults] = useState<DoubleRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [authChecked, setAuthChecked] = useState(false);
+  // Gate de auth: começa indefinido (SSR) e resolve no 1º render do cliente,
+  // ANTES de mostrar qualquer conteúdo. Evita o "flash" do site antes do login.
+  const [authChecked, setAuthChecked] = useState<boolean | null>(null);
   const [syncState, setSyncState] = useState<ClientSyncState>({
     status: "idle",
     lastInserted: 0,
@@ -164,16 +166,23 @@ function Index() {
   const [livePreview, setLivePreview] = useState<LivePayload | null>(null);
   useEffect(() => {
     setNow(new Date());
-    // gate de auth no client (evita hydration mismatch)
-    import("@/lib/auth").then(({ getSession }) => {
-      const s = getSession();
-      if (!s) {
-        window.location.href = "/login";
+    // Checagem síncrona da sessão no client — sem dynamic import (que adiciona
+    // delay e deixa o site aparecer antes do redirect).
+    try {
+      const raw = window.localStorage.getItem("fluxojon:session:v1");
+      const session = raw ? JSON.parse(raw) : null;
+      const valid =
+        session && typeof session.expiresAt === "number" && Date.now() < session.expiresAt;
+      if (!valid) {
+        window.location.replace("/login");
         return;
       }
       setAuthChecked(true);
-    });
+    } catch {
+      window.location.replace("/login");
+    }
   }, []);
+
 
   // WebSocket direto na Jonbet (browser) — antecipa a pedra (status "rolling")
   // e salva a final (status "complete") no Supabase. Só roda com a aba aberta.
@@ -407,6 +416,12 @@ function Index() {
     return Math.floor(now.getTime() / 60000) * 60000;
   }, [now]);
 
+
+  // Não renderiza nada até a auth ser confirmada — evita o flash do site
+  // antes de redirecionar pro /login.
+  if (authChecked !== true) {
+    return <div className="min-h-screen bg-slate-950" />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
