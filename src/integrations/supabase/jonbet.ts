@@ -44,24 +44,15 @@ export type JonbetDatabase = {
 const JONBET_URL = "https://gkirupsizqghgsoyjsvy.supabase.co";
 const JONBET_ANON = "sb_publishable__yC2pEqTL0OkWiloeGFwoQ_n7q2kPnh";
 
-function makeClient(): SupabaseClient<JonbetDatabase> {
-  return createClient<JonbetDatabase>(JONBET_URL, JONBET_ANON, {
+export const jonbetSupabase: SupabaseClient<JonbetDatabase> = createClient<JonbetDatabase>(
+  JONBET_URL,
+  JONBET_ANON,
+  {
     auth: {
       storage: typeof window !== "undefined" ? window.localStorage : undefined,
       persistSession: false,
       autoRefreshToken: false,
-    },
-  });
-}
-
-let _client: SupabaseClient<JonbetDatabase> | undefined;
-
-export const jonbetSupabase = new Proxy(
-  {} as SupabaseClient<JonbetDatabase>,
-  {
-    get(_, prop, receiver) {
-      if (!_client) _client = makeClient();
-      return Reflect.get(_client, prop, receiver);
+      storageKey: "jonbet-supabase-auth",
     },
   },
 );
