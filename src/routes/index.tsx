@@ -551,14 +551,23 @@ function Index() {
                 <div
                   className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
                 >
-                  {/* Barra de data */}
+                  {/* Barra de data + relógio Brasília */}
                   <div
-                    className="flex items-center justify-center px-3 py-2"
+                    className="flex items-center justify-between gap-3 px-3 py-2"
                     style={{ background: "linear-gradient(135deg, #0277bd, #01579b)" }}
                   >
-                    <span className="text-[15px] font-bold text-white tabular-nums tracking-wider">
+                    <span className="text-[13px] font-bold text-white/90 tabular-nums tracking-wider">
                       {todayLabel}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                      </span>
+                      <span className="font-mono text-[16px] font-extrabold tabular-nums text-white">
+                        {clockTime}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Header das colunas (00..09) */}
