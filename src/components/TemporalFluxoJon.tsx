@@ -263,14 +263,12 @@ export default function TemporalFluxoJon({
             </div>
             <div
               className={`mt-1 text-[11px] font-medium ${
-                recInfo.isRec ? "text-amber-100/90" : "text-slate-400"
+                recInfo.isRec ? "text-rose-100/90" : "text-slate-400"
               }`}
             >
               {whites.length < 1
                 ? "Aguardando histórico…"
-                : recInfo.isRec
-                  ? `🔥 ${reasonText} • há ${recInfo.sinceMin}min`
-                  : `${recInfo.stonesSince} pedras sem branco • há ${recInfo.sinceMin}min`}
+                : `${reasonText} • há ${recInfo.sinceMin}min`}
             </div>
           </div>
 
@@ -294,8 +292,8 @@ export default function TemporalFluxoJon({
                     className={`h-3 w-1.5 rounded-sm ${
                       on
                         ? recInfo.isRec
-                          ? "bg-amber-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]"
-                          : "bg-slate-400"
+                          ? "bg-rose-400"
+                          : "bg-emerald-400"
                         : "bg-slate-700/70"
                     }`}
                   />
@@ -308,7 +306,7 @@ export default function TemporalFluxoJon({
 
       {/* PEDRAS PUXADORAS COM 1 TIRO */}
       <div className="rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
-        <div className="flex items-center gap-1.5 mb-2">
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <Target className="h-3.5 w-3.5 text-cyan-300" />
           <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-cyan-200">
             Pedras Puxadoras com 1 Tiro
@@ -324,11 +322,13 @@ export default function TemporalFluxoJon({
               className="flex flex-col items-center gap-1 rounded-md border border-slate-700/60 bg-slate-800/50 p-1.5"
               title={`Pedra ${p.roll}: ${p.total} ocorrências`}
             >
-              <div
-                className={`h-6 w-6 rounded-md flex items-center justify-center text-[11px] font-black ring-1 ring-slate-600 ${rollBg(p.roll)}`}
-              >
-                {p.roll}
-              </div>
+              <Slot
+                number={p.roll}
+                color={
+                  p.roll === 0 ? "white" : p.roll <= 7 ? "green" : "black"
+                }
+                size="sm"
+              />
               <div className="flex items-center gap-1">
                 {colorDot(p.topColor)}
                 <span
