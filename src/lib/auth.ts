@@ -23,6 +23,7 @@ export type ActivationCode = {
   usedBy: string[]; // emails que usaram
   maxUses: number; // 0 = ilimitado
   note?: string;
+  revoked?: boolean;
 };
 
 export type RegisteredUser = {
@@ -121,6 +122,12 @@ export function login(
     if (existing.passwordHash !== simpleHash(p)) {
       return { ok: false, error: "Senha incorreta." };
     }
+    // verifica se o código usado foi revogado
+    const allCodes = read<ActivationCode[]>(CODES_KEY, []);
+    const userCode = allCodes.find((x) => x.code === existing.codeUsed);
+    if (userCode?.revoked) {
+      return { ok: false, error: "Seu acesso foi revogado pelo admin." };
+    }
     if (Date.now() > existing.codeExpiresAt) {
       return {
         ok: false,
@@ -144,6 +151,9 @@ export function login(
   const found = codes.find((x) => x.code === c);
   if (!found) {
     return { ok: false, error: "Código inválido." };
+  }
+  if (found.revoked) {
+    return { ok: false, error: "Código revogado pelo admin." };
   }
   if (Date.now() > found.expiresAt) {
     return { ok: false, error: "Código expirado." };
@@ -216,6 +226,22 @@ export function deleteCode(code: string) {
   write(
     CODES_KEY,
     codes.filter((c) => c.code !== code),
+  );
+}
+
+export function revokeCode(code: string) {
+  const codes = read<ActivationCode[]>(CODES_KEY, []);
+  write(
+    CODES_KEY,
+    codes.map((c) => (c.code === code ? { ...c, revoked: true } : c)),
+  );
+}
+
+export function unrevokeCode(code: string) {
+  const codes = read<ActivationCode[]>(CODES_KEY, []);
+  write(
+    CODES_KEY,
+    codes.map((c) => (c.code === code ? { ...c, revoked: false } : c)),
   );
 }
 
