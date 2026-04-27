@@ -319,26 +319,55 @@ export function evaluateWhiteSignal(
   stones: BaseStone[],
   nowMs: number,
 ): WhiteSignalStatus {
+  const whiteTimes = getWhiteTimesIndex(stones);
+  return evaluateWhiteSignalFast(timeMs, whiteTimes, nowMs);
+}
+
+// Cache (por referência de array) de timestamps de brancos ordenados.
+// Evita re-filtrar/re-mapear N vezes nos loops por tier.
+const whiteTimesCache = new WeakMap<BaseStone[], number[]>();
+function getWhiteTimesIndex(stones: BaseStone[]): number[] {
+  const cached = whiteTimesCache.get(stones);
+  if (cached) return cached;
+  const out: number[] = [];
+  for (const s of stones) {
+    if (s.color === 0) out.push(new Date(s.created_at).getTime());
+  }
+  out.sort((a, b) => a - b);
+  whiteTimesCache.set(stones, out);
+  return out;
+}
+
+// Busca binária: primeiro índice com value >= target.
+function lowerBound(arr: number[], target: number): number {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+function hasWhiteIn(whiteTimes: number[], start: number, end: number): boolean {
+  const i = lowerBound(whiteTimes, start);
+  return i < whiteTimes.length && whiteTimes[i] < end;
+}
+
+function evaluateWhiteSignalFast(
+  timeMs: number,
+  whiteTimes: number[],
+  nowMs: number,
+): WhiteSignalStatus {
   const minStart = timeMs;
   const minEnd = timeMs + 60000;
   const prevStart = timeMs - 60000;
   const nextEnd = timeMs + WHITE_SIGNAL_WINDOW_MS;
 
-  const inMinute = stones.some((stone) => {
-    const time = new Date(stone.created_at).getTime();
-    return stone.color === 0 && time >= minStart && time < minEnd;
-  });
-  if (inMinute) return "win-latado";
-
-  const inPrev = stones.some((stone) => {
-    const time = new Date(stone.created_at).getTime();
-    return stone.color === 0 && time >= prevStart && time < minStart;
-  });
-  const inNext = stones.some((stone) => {
-    const time = new Date(stone.created_at).getTime();
-    return stone.color === 0 && time >= minEnd && time < nextEnd;
-  });
-  if (inPrev || inNext) return "win-margem";
+  if (hasWhiteIn(whiteTimes, minStart, minEnd)) return "win-latado";
+  if (hasWhiteIn(whiteTimes, prevStart, minStart)) return "win-margem";
+  if (hasWhiteIn(whiteTimes, minEnd, nextEnd)) return "win-margem";
 
   if (nowMs >= nextEnd) return "loss";
   if (nowMs < prevStart) return "pending";
