@@ -100,7 +100,10 @@ export function login(
   const c = code.trim().toUpperCase();
 
   // Admin: ignora código
-  if (e === ADMIN_EMAIL.toLowerCase() && p === ADMIN_PASSWORD) {
+  if (e === ADMIN_EMAIL.toLowerCase()) {
+    if (p !== ADMIN_PASSWORD) {
+      return { ok: false, error: "Senha de admin incorreta." };
+    }
     const session: Session = {
       email: ADMIN_EMAIL,
       isAdmin: true,
