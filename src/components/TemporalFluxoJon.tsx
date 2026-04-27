@@ -221,29 +221,26 @@ export default function TemporalFluxoJon({
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${
               recInfo.isRec
-                ? "border-amber-300/60 bg-amber-400/15 text-amber-300"
-                : "border-slate-600/70 bg-slate-800/60 text-slate-300"
+                ? "border-rose-400/60 bg-rose-500/15 text-rose-300"
+                : "border-emerald-400/60 bg-emerald-500/15 text-emerald-300"
             }`}
           >
-            {recInfo.isRec ? (
-              <Flame className="h-5 w-5 drop-shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
-            ) : (
-              <Snowflake className="h-5 w-5" />
-            )}
+            <Activity className="h-5 w-5" />
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`text-[11px] font-extrabold uppercase tracking-[0.18em] ${
-                  recInfo.isRec ? "text-amber-300" : "text-slate-200"
+                  recInfo.isRec ? "text-rose-200" : "text-slate-200"
                 }`}
               >
                 Temporal do Fluxo Jon
               </span>
               {recInfo.isRec && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-400/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-amber-200">
-                  <Zap className="h-2.5 w-2.5" /> REC
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/60 bg-rose-500/20 px-2 py-[1px] text-[9px] font-black uppercase tracking-wider text-rose-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-300 animate-pulse" />
+                  REC
                 </span>
               )}
               {/* Alerta verde/vermelho ENTRAR / NÃO ENTRAR */}
