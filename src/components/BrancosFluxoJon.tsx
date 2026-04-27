@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
+
+const STORAGE_KEY = "brancos-fluxo-jon:signals:v1";
 
 export type BrancoStone = {
   id: string | number;
