@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { jonbetSupabase as supabase } from "@/integrations/supabase/jonbet";
 import type { ClientSyncState } from "@/hooks/useClientJonbetSync";
-import { useJonbetWebSocket, type LivePayload } from "@/hooks/useJonbetWebSocket";
+import { useJonbetWebSocket } from "@/hooks/useJonbetWebSocket";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SpinWheel from "@/components/SpinWheel";
 import FluxoCores from "@/components/FluxoCores";
@@ -93,19 +93,119 @@ function startOfBrasiliaDayISO(ref: Date = new Date()): string {
   return startUtc.toISOString();
 }
 
-type Cell = {
-  rowStart: number;
-  col: number;
-  minute: number;
-  first: DoubleRow | null;
-  second: DoubleRow | null;
+type GridRow = {
+  rowKey: string;
+  cells: Array<{
+    key: string;
+    timeLabel: string;
+    items: DoubleRow[];
+  }>;
 };
 
-type MinuteCol = {
-  minuteStartUtc: number;
-  label: string;
-  stones: DoubleRow[];
-};
+function buildRowsForGrid(
+  results: DoubleRow[],
+  now: Date | null,
+  displayCols: number,
+  stonesPerMinute: number,
+): GridRow[] {
+  if (results.length === 0) {
+    const ref = now ?? new Date();
+    const brasiliaMs = ref.getTime() - 3 * 60 * 60 * 1000;
+    const minuteStartMs = Math.floor(brasiliaMs / 60000) * 60000;
+    const anchor = new Date(
+      minuteStartMs - (new Date(minuteStartMs).getUTCMinutes() % 10) * 60000,
+    );
+
+    return Array.from({ length: 6 }, (_, rowIdx) => {
+      const rowStart = new Date(anchor);
+      rowStart.setUTCMinutes(anchor.getUTCMinutes() - rowIdx * 10);
+
+      return {
+        rowKey: `empty-${rowIdx}`,
+        cells: Array.from({ length: displayCols }, (_, col) => {
+          const md = new Date(rowStart);
+          md.setUTCMinutes(rowStart.getUTCMinutes() + col);
+          return {
+            key: `${rowIdx}-${col}`,
+            timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
+            items: [] as DoubleRow[],
+          };
+        }),
+      };
+    });
+  }
+
+  const toBrasilia = (iso: string) =>
+    new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
+  const minuteKeyOf = (iso: string) => {
+    const d = toBrasilia(iso);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  };
+
+  const byMinute = new Map<string, DoubleRow[]>();
+  for (const r of results) {
+    const k = minuteKeyOf(r.created_at);
+    const list = byMinute.get(k) ?? [];
+    list.push(r);
+    byMinute.set(k, list);
+  }
+
+  for (const list of byMinute.values()) {
+    list.sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+  }
+
+  const newest = toBrasilia(results[results.length - 1].created_at);
+  const oldest = toBrasilia(results[0].created_at);
+
+  const anchorRowStart = new Date(
+    Date.UTC(
+      newest.getUTCFullYear(),
+      newest.getUTCMonth(),
+      newest.getUTCDate(),
+      newest.getUTCHours(),
+      Math.floor(newest.getUTCMinutes() / 10) * 10,
+    ),
+  );
+  const oldestRowStart = new Date(
+    Date.UTC(
+      oldest.getUTCFullYear(),
+      oldest.getUTCMonth(),
+      oldest.getUTCDate(),
+      oldest.getUTCHours(),
+      Math.floor(oldest.getUTCMinutes() / 10) * 10,
+    ),
+  );
+
+  const rowCount = Math.max(
+    6,
+    Math.ceil(
+      (anchorRowStart.getTime() - oldestRowStart.getTime()) / (10 * 60 * 1000),
+    ) + 1,
+  );
+
+  return Array.from({ length: rowCount }, (_, rowIdx) => {
+    const rowStart = new Date(anchorRowStart);
+    rowStart.setUTCMinutes(anchorRowStart.getUTCMinutes() - rowIdx * 10);
+
+    return {
+      rowKey: `${rowStart.getTime()}`,
+      cells: Array.from({ length: displayCols }, (_, col) => {
+        const md = new Date(rowStart);
+        md.setUTCMinutes(rowStart.getUTCMinutes() + col);
+        const key = `${md.getUTCFullYear()}-${pad2(md.getUTCMonth() + 1)}-${pad2(md.getUTCDate())} ${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`;
+
+        return {
+          key,
+          timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
+          items: (byMinute.get(key) ?? []).slice(0, stonesPerMinute),
+        };
+      }),
+    };
+  });
+}
 
 function compareByCreatedAtAsc(a: DoubleRow, b: DoubleRow) {
   const timeDiff =
@@ -163,7 +263,6 @@ function Index() {
   });
   // now começa em 0 no SSR e só vira Date no cliente — evita hydration mismatch
   const [now, setNow] = useState<Date | null>(null);
-  const [livePreview, setLivePreview] = useState<LivePayload | null>(null);
   useEffect(() => {
     setNow(new Date());
     // Checagem síncrona da sessão no client — sem dynamic import (que adiciona
@@ -186,15 +285,7 @@ function Index() {
 
   // WebSocket direto na Jonbet (browser) — antecipa a pedra (status "rolling")
   // e salva a final (status "complete") no Supabase. Só roda com a aba aberta.
-  const wsState = useJonbetWebSocket((payload) => {
-    setLivePreview(payload);
-    if (payload.status === "complete") {
-      // limpa preview após a pedra final ser confirmada
-      setTimeout(() => {
-        setLivePreview((cur) => (cur?.id === payload.id ? null : cur));
-      }, 1500);
-    }
-  });
+  useJonbetWebSocket(() => {});
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
@@ -333,69 +424,7 @@ function Index() {
     };
   }, [now]);
 
-  // Linhas alinhadas: cada linha = dezena de minutos (HH:M0..HH:M9 em Brasília),
-  // cada coluna 0..9 = dígito do minuto. Cada pedra é uma célula independente
-  // empilhada verticalmente dentro da sua coluna (ordem cronológica, recente em cima).
-  const minuteRows = useMemo(() => {
-    const fmtHM = new Intl.DateTimeFormat("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-
-    // Indexa todas as pedras por minuto (lista, mais recente primeiro)
-    const byMinute = new Map<number, DoubleRow[]>();
-    let minMinute = Infinity;
-    let maxMinute = -Infinity;
-    for (const r of results) {
-      const t = new Date(r.created_at).getTime();
-      const minuteStartUtc = Math.floor(t / 60000) * 60000;
-      if (minuteStartUtc < minMinute) minMinute = minuteStartUtc;
-      if (minuteStartUtc > maxMinute) maxMinute = minuteStartUtc;
-      const list = byMinute.get(minuteStartUtc) ?? [];
-      list.push(r);
-      byMinute.set(minuteStartUtc, list);
-    }
-    // Ordena cada minuto cronologicamente: a 1ª pedra do minuto fica à esquerda
-    for (const list of byMinute.values()) {
-      list.sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      );
-    }
-
-    if (!isFinite(minMinute)) return [] as MinuteCol[][];
-
-    const minuteDigit = (utcMs: number) => new Date(utcMs).getUTCMinutes() % 10;
-    const decadeStart = (utcMs: number) =>
-      utcMs - minuteDigit(utcMs) * 60000;
-
-    const firstDecade = decadeStart(minMinute);
-    const lastDecade = decadeStart(maxMinute);
-
-    const rows: MinuteCol[][] = [];
-    for (let dec = lastDecade; dec >= firstDecade; dec -= 10 * 60000) {
-      const row: MinuteCol[] = [];
-      let any = false;
-      for (let col = 0; col < 10; col++) {
-        const minuteStartUtc = dec + col * 60000;
-        const stones = byMinute.get(minuteStartUtc) ?? [];
-        if (stones.length) any = true;
-        row.push({
-          minuteStartUtc,
-          label: fmtHM.format(new Date(minuteStartUtc)),
-          stones,
-        });
-      }
-      if (any) rows.push(row);
-    }
-    return rows;
-  }, [results]);
-
-
   const clockTime = `${brasiliaParts.hour}:${brasiliaParts.minute}:${brasiliaParts.second}`;
-  const clockDate = `${brasiliaParts.day}/${brasiliaParts.month}/${brasiliaParts.year}`;
   const latestResult = results[results.length - 1] ?? null;
 
   // Countdown da próxima rodada — calculado a partir do created_at
@@ -415,6 +444,25 @@ function Index() {
     if (!now) return 0;
     return Math.floor(now.getTime() / 60000) * 60000;
   }, [now]);
+
+  const displayCols = 10;
+  const stonesPerMinute = STONES_PER_MINUTE;
+  const cellWidthClass = isMobile ? "w-[86px]" : "w-[92px]";
+  const gridMinWidthClass = isMobile ? "min-w-[912px]" : "min-w-[972px]";
+  const FLUXO_W = 280;
+  const rowsForGrid = useMemo(
+    () => buildRowsForGrid(results, now, displayCols, stonesPerMinute),
+    [results, now, displayCols, stonesPerMinute],
+  );
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+    [],
+  );
 
 
   // Não renderiza nada até a auth ser confirmada — evita o flash do site
@@ -460,135 +508,11 @@ function Index() {
         {/* Relógio e badge da última pedra movidos para dentro do histórico */}
 
         {/* Histórico — 10 colunas fixas (00..09), 2 pedras por minuto, mín 6 linhas */}
-        {(() => {
-          const displayCols = 10;
-          const stonesPerMinute = STONES_PER_MINUTE;
-          const cellWidthClass = isMobile ? "w-[86px]" : "w-[92px]";
-          const gridMinWidthClass = isMobile ? "min-w-[912px]" : "min-w-[972px]";
-          const FLUXO_W = 280;
-
-          // Monta minuteRows direto a partir de `results` no formato da spec
-          const rowsForGrid = (() => {
-            if (results.length === 0) {
-              // sem dados ainda: cria 6 linhas vazias ancoradas no minuto atual de Brasília
-              const ref = now ?? new Date();
-              const brasiliaMs = ref.getTime() - 3 * 60 * 60 * 1000;
-              const minuteStartMs = Math.floor(brasiliaMs / 60000) * 60000;
-              const anchor = new Date(
-                minuteStartMs - (new Date(minuteStartMs).getUTCMinutes() % 10) * 60000,
-              );
-              return Array.from({ length: 6 }, (_, rowIdx) => {
-                const rowStart = new Date(anchor);
-                rowStart.setUTCMinutes(anchor.getUTCMinutes() - rowIdx * 10);
-                return {
-                  rowKey: `empty-${rowIdx}`,
-                  cells: Array.from({ length: displayCols }, (_, col) => {
-                    const md = new Date(rowStart);
-                    md.setUTCMinutes(rowStart.getUTCMinutes() + col);
-                    return {
-                      key: `${rowIdx}-${col}`,
-                      timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
-                      items: [] as DoubleRow[],
-                    };
-                  }),
-                };
-              });
-            }
-
-            // Em Brasília (UTC-3): cada pedra ganha um minute_key "YYYY-MM-DD HH:MM"
-            const toBrasilia = (iso: string) =>
-              new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
-            const minuteKeyOf = (iso: string) => {
-              const d = toBrasilia(iso);
-              return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
-            };
-
-            const byMinute = new Map<string, DoubleRow[]>();
-            for (const r of results) {
-              const k = minuteKeyOf(r.created_at);
-              const list = byMinute.get(k) ?? [];
-              list.push(r);
-              byMinute.set(k, list);
-            }
-            for (const list of byMinute.values()) {
-              list.sort(
-                (a, b) =>
-                  new Date(a.created_at).getTime() -
-                  new Date(b.created_at).getTime(),
-              );
-            }
-
-            // Mais novo (results já está asc, então pega o último)
-            const newest = toBrasilia(results[results.length - 1].created_at);
-            const oldest = toBrasilia(results[0].created_at);
-
-            const anchorRowStart = new Date(
-              Date.UTC(
-                newest.getUTCFullYear(),
-                newest.getUTCMonth(),
-                newest.getUTCDate(),
-                newest.getUTCHours(),
-                Math.floor(newest.getUTCMinutes() / 10) * 10,
-              ),
-            );
-            const oldestRowStart = new Date(
-              Date.UTC(
-                oldest.getUTCFullYear(),
-                oldest.getUTCMonth(),
-                oldest.getUTCDate(),
-                oldest.getUTCHours(),
-                Math.floor(oldest.getUTCMinutes() / 10) * 10,
-              ),
-            );
-
-            const rowCount = Math.max(
-              6,
-              Math.ceil(
-                (anchorRowStart.getTime() - oldestRowStart.getTime()) /
-                  (10 * 60 * 1000),
-              ) + 1,
-            );
-
-            return Array.from({ length: rowCount }, (_, rowIdx) => {
-              const rowStart = new Date(anchorRowStart);
-              rowStart.setUTCMinutes(anchorRowStart.getUTCMinutes() - rowIdx * 10);
-              return {
-                rowKey: `${rowStart.getTime()}`,
-                cells: Array.from({ length: displayCols }, (_, col) => {
-                  const md = new Date(rowStart);
-                  md.setUTCMinutes(rowStart.getUTCMinutes() + col);
-                  const key = `${md.getUTCFullYear()}-${pad2(md.getUTCMonth() + 1)}-${pad2(md.getUTCDate())} ${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`;
-                  return {
-                    key,
-                    timeLabel: `${pad2(md.getUTCHours())}:${pad2(md.getUTCMinutes())}`,
-                    items: (byMinute.get(key) ?? []).slice(0, stonesPerMinute),
-                  };
-                }),
-              };
-            });
-          })();
-
-          const renderEmptyStone = (key: string, timeLabel: string) => (
-            <div key={key} className="flex flex-col items-center gap-0.5">
-              <div className="h-8 w-8 rounded-full border border-white/20 bg-white/5" />
-              <span className="text-[9px] font-bold text-white/70 tracking-wider bg-white/10 px-1.5 py-0.5 rounded-sm">
-                {timeLabel}
-              </span>
-            </div>
-          );
-
-          const todayLabel = new Date().toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          });
-
-          return (
-            <div className="overflow-x-auto">
-              <div className="flex items-start gap-2">
-                <div
-                  className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
-                >
+        <div className="overflow-x-auto">
+          <div className="flex items-start gap-2">
+            <div
+              className={`${gridMinWidthClass} bg-white/5 rounded-lg overflow-hidden`}
+            >
                   {/* Barra de data + relógio Brasília */}
                   <div
                     className="flex items-center justify-between gap-3 px-3 py-2"
@@ -667,18 +591,16 @@ function Index() {
                       </div>
                     ))}
                   </div>
-                </div>
-
-                {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
-                <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
-                  <FluxoCores stones={results} nowMs={nowMinuteMs} />
-                  <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
-                  <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
-                </div>
-              </div>
             </div>
-          );
-        })()}
+
+            {/* Painel Fluxo Jon Cores + Brancos do Fluxo Jon */}
+            <div style={{ width: FLUXO_W, flexShrink: 0 }} className="space-y-3">
+              <FluxoCores stones={results} nowMs={nowMinuteMs} />
+              <BrancosFluxoJon stones={results} nowMs={nowMinuteMs} />
+              <CorrecaoBrancos stones={results} nowMs={nowMinuteMs} />
+            </div>
+          </div>
+        </div>
 
 
         {loading && (
