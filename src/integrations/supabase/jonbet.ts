@@ -40,36 +40,12 @@ export type JonbetDatabase = {
   };
 };
 
-function pickEnv(viteName: string, processName: string): string | undefined {
-  const fromVite =
-    typeof import.meta !== "undefined"
-      ? (import.meta as unknown as { env?: Record<string, string | undefined> })
-          .env?.[viteName]
-      : undefined;
-  if (fromVite) return fromVite;
-  if (typeof process !== "undefined" && process.env) {
-    return process.env[processName];
-  }
-  return undefined;
-}
+// URL e anon key do projeto Jonbet (chave pública, segura no client).
+const JONBET_URL = "https://gkirupsizqghgsoyjsvy.supabase.co";
+const JONBET_ANON = "sb_publishable__yC2pEqTL0OkWiloeGFwoQ_n7q2kPnh";
 
 function makeClient(): SupabaseClient<JonbetDatabase> {
-  // Tenta primeiro JONBET_*, depois cai pro padrão (caso o usuário queira
-  // usar o projeto principal). No frontend, expomos VITE_JONBET_*.
-  const url =
-    pickEnv("VITE_JONBET_SUPABASE_URL", "JONBET_SUPABASE_URL") ||
-    pickEnv("VITE_SUPABASE_URL", "SUPABASE_URL");
-  const anon =
-    pickEnv("VITE_JONBET_SUPABASE_ANON_KEY", "JONBET_SUPABASE_ANON_KEY") ||
-    pickEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_PUBLISHABLE_KEY");
-
-  if (!url || !anon) {
-    throw new Error(
-      "Jonbet Supabase env vars ausentes (VITE_JONBET_SUPABASE_URL / VITE_JONBET_SUPABASE_ANON_KEY).",
-    );
-  }
-
-  return createClient<JonbetDatabase>(url, anon, {
+  return createClient<JonbetDatabase>(JONBET_URL, JONBET_ANON, {
     auth: {
       storage: typeof window !== "undefined" ? window.localStorage : undefined,
       persistSession: false,
