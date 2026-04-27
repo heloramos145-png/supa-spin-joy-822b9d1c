@@ -146,6 +146,9 @@ export function login(
   if (!found) {
     return { ok: false, error: "Código inválido." };
   }
+  if (found.revoked) {
+    return { ok: false, error: "Código revogado pelo admin." };
+  }
   if (Date.now() > found.expiresAt) {
     return { ok: false, error: "Código expirado." };
   }
