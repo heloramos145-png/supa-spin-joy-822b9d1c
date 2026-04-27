@@ -1,144 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
+import {
+  getFluxoCoresDayState,
+  type BaseStone,
+  type FluxoTab,
+} from "@/lib/fluxoJon";
 
-export type FluxoStone = {
-  id: string | number;
-  roll: number;
-  color: number; // 0=branco, 1=verde, 2=preto
-  created_at: string;
-};
-
-type Tab = "SG" | "G1" | "G2";
-
-// Intervalos cíclicos (em minutos) que somam pra formar a lista
-const INTERVALS = [2, 4, 6, 8, 10, 12, 7, 9];
-const SIGNALS_COUNT = 35;
-
-// Cor prevista pelo dígito do minuto:
-// 1-7 → verde, 8-14 → preto, resto (0, 15-59) → também segue o ciclo via mod 14
-function predictColor(minute: number): 1 | 2 {
-  // Mapeia minuto absoluto pra ciclo 1-14: usamos minute % 14, com 0 → 14
-  const m = minute % 14 === 0 ? 14 : minute % 14;
-  return m <= 7 ? 1 : 2;
-}
-
-type Signal = {
-  timeMs: number; // início do minuto alvo (UTC ms)
-  label: string; // HH:MM Brasília
-  predicted: 1 | 2; // verde ou preto
-};
-
-function fmtHM(ms: number): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(ms));
-}
-
-function brasiliaMinute(ms: number): number {
-  // Minuto Brasília (UTC-3)
-  const b = new Date(ms - 3 * 60 * 60 * 1000);
-  return b.getUTCMinutes();
-}
-
-function brasiliaDayKey(ms: number): string {
-  const d = new Date(ms - 3 * 60 * 60 * 1000);
-  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
-}
-
-function buildSignals(startMs: number): Signal[] {
-  const signals: Signal[] = [];
-  // alinha startMs no início do minuto
-  let cursor = Math.floor(startMs / 60000) * 60000;
-  for (let i = 0; i < SIGNALS_COUNT; i++) {
-    const step = INTERVALS[i % INTERVALS.length];
-    cursor = cursor + step * 60000;
-    const min = brasiliaMinute(cursor);
-    signals.push({
-      timeMs: cursor,
-      label: fmtHM(cursor),
-      predicted: predictColor(min),
-    });
-  }
-  return signals;
-}
-
-type SignalResult = "pending" | "green" | "red" | "waiting";
-
-type SignalStore = {
-  dayKey: string;
-  signals: Signal[];
-};
-
-type ScoreEntry = { timeMs: number; tab: Tab; status: "green" | "red" };
-type ScoreStore = { dayKey: string; entries: ScoreEntry[] };
-
-function evaluate(
-  sig: Signal,
-  tab: Tab,
-  stones: FluxoStone[],
-  nowMs: number,
-): SignalResult {
-  // Pedras alvo conforme aba
-  const minStart = sig.timeMs;
-  const minEnd = sig.timeMs + 60000;
-  const nextEnd = sig.timeMs + 120000;
-
-  const inMinute = stones
-    .filter((s) => {
-      const t = new Date(s.created_at).getTime();
-      return t >= minStart && t < minEnd;
-    })
-    .sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-  const inNext = stones
-    .filter((s) => {
-      const t = new Date(s.created_at).getTime();
-      return t >= minEnd && t < nextEnd;
-    })
-    .sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-    );
-
-  // Acerto = veio verde (1) OU branco (0). Erro = preto (2).
-  const isHit = (c: number) => c === 0 || c === sig.predicted;
-
-  const targets: FluxoStone[] = [];
-  if (tab === "SG") {
-    if (inMinute[0]) targets.push(inMinute[0]);
-  } else if (tab === "G1") {
-    if (inMinute[0]) targets.push(inMinute[0]);
-    if (inMinute[1]) targets.push(inMinute[1]);
-  } else {
-    if (inMinute[0]) targets.push(inMinute[0]);
-    if (inMinute[1]) targets.push(inMinute[1]);
-    if (inNext[0]) targets.push(inNext[0]);
-  }
-
-  // Quantas pedras precisamos pra fechar o sinal?
-  const needed = tab === "SG" ? 1 : tab === "G1" ? 2 : 3;
-  const windowEnd = tab === "G2" ? nextEnd : minEnd;
-
-  // Se já tem alguma pedra de acerto, é GREEN
-  if (targets.some((s) => isHit(s.color))) return "green";
-
-  // Janela já fechou e ninguém acertou → RED
-  if (nowMs >= windowEnd && targets.length >= needed) return "red";
-  if (nowMs >= windowEnd) {
-    // janela fechou, talvez sem pedras suficientes (pulou rodada) → considera red
-    return "red";
-  }
-
-  // Sinal ainda no futuro
-  if (nowMs < minStart) return "pending";
-  // Sinal acontecendo agora
-  return "waiting";
-}
+export type FluxoStone = BaseStone;
 
 function StoneIcon({ color }: { color: 0 | 1 | 2 }) {
   if (color === 0) {
@@ -161,188 +29,14 @@ export default function FluxoCores({
   stones: FluxoStone[];
   nowMs: number;
 }) {
-  const [tab, setTab] = useState<Tab>("SG");
-
-  // Lista FIXA: gerada uma vez, persistida em localStorage. Só regenera
-  // quando TODOS os 35 sinais terminaram. Sobrevive a refresh / fechar aba.
-  const STORAGE_KEY = "fluxo-cores:signals:v1";
-  // IMPORTANTE: começamos com [] e hidratamos do localStorage em useEffect
-  // no cliente. Inicializar com leitura do localStorage no useState quebra
-  // com SSR (servidor devolve [] e o cliente reusa esse [] do HTML).
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [hydrated, setHydrated] = useState(false);
-  const [scoreLoaded, setScoreLoaded] = useState(false);
-
-  // Hidrata do localStorage uma única vez no cliente
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Signal[] | SignalStore;
-        if (Array.isArray(parsed) && parsed.length === SIGNALS_COUNT) {
-          const inferredDayKey = parsed[0]
-            ? brasiliaDayKey(parsed[0].timeMs)
-            : brasiliaDayKey(Date.now());
-          if (inferredDayKey === brasiliaDayKey(Date.now())) {
-            setSignals(parsed);
-          }
-        } else if (
-          parsed &&
-          typeof parsed === "object" &&
-          "signals" in parsed &&
-          Array.isArray(parsed.signals) &&
-          parsed.dayKey === brasiliaDayKey(Date.now()) &&
-          parsed.signals.length === SIGNALS_COUNT
-        ) {
-          setSignals(parsed.signals);
-        }
-      }
-    } catch {
-      // ignore
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!nowMs || !hydrated) return;
-    setSignals((prev) => {
-      const today = brasiliaDayKey(nowMs);
-      // Primeira geração (só depois de hidratado, pra não sobrescrever storage)
-      if (prev.length === 0) {
-        const next = buildSignals(nowMs);
-        try {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ dayKey: today, signals: next } satisfies SignalStore),
-          );
-        } catch {
-          // ignore
-        }
-        return next;
-      }
-      // Virou o dia em Brasília → reinicia a lista do dia.
-      if (brasiliaDayKey(prev[0].timeMs) !== today) {
-        const next = buildSignals(nowMs);
-        try {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ dayKey: today, signals: next } satisfies SignalStore),
-          );
-        } catch {
-          // ignore
-        }
-        return next;
-      }
-      // Só regenera se todos os 35 sinais já fecharam (janela máxima = +2min p/ G2)
-      const allDone = prev.every((s) => nowMs >= s.timeMs + 120000);
-      if (allDone) {
-        const next = buildSignals(prev[prev.length - 1].timeMs);
-        try {
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ dayKey: today, signals: next } satisfies SignalStore),
-          );
-        } catch {
-          // ignore
-        }
-        return next;
-      }
-      return prev;
-    });
-  }, [nowMs, hydrated]);
-
-  const evaluated = useMemo(
-    () =>
-      signals.map((s) => ({
-        ...s,
-        status: evaluate(s, tab, stones, nowMs),
-      })),
-    [signals, tab, stones, nowMs],
-  );
-
-  const evaluatedByTab = useMemo(
-    () => ({
-      SG: signals.map((s) => ({ ...s, status: evaluate(s, "SG", stones, nowMs) })),
-      G1: signals.map((s) => ({ ...s, status: evaluate(s, "G1", stones, nowMs) })),
-      G2: signals.map((s) => ({ ...s, status: evaluate(s, "G2", stones, nowMs) })),
-    }),
-    [signals, stones, nowMs],
-  );
-
-  // ===== Placar acumulado do DIA (por aba) =====
-  // Cada vez que um sinal fica "green" ou "red", grava no storage do dia.
-  // Placar = soma de todos os sinais resolvidos do dia, mesmo de listas
-  // anteriores que já foram regeneradas.
-  const SCORE_KEY = "fluxo-cores:score:v2";
-
-  const [scoreStore, setScoreStore] = useState<ScoreStore>({ dayKey: "", entries: [] });
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      const raw = window.localStorage.getItem(SCORE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as ScoreStore;
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          Array.isArray(parsed.entries) &&
-          typeof parsed.dayKey === "string"
-        ) {
-          setScoreStore(parsed);
-        }
-      }
-    } catch {
-      // ignore
-    } finally {
-      setScoreLoaded(true);
-    }
-  }, [hydrated]);
-
-  useEffect(() => {
-    if (!hydrated || !scoreLoaded || !nowMs) return;
-    const today = brasiliaDayKey(nowMs);
-    setScoreStore((prev) => {
-      let next = prev;
-      // virou o dia → zera
-      if (prev.dayKey !== today) {
-        next = { dayKey: today, entries: [] };
-      }
-      let changed = next !== prev;
-      const entries = [...next.entries];
-      for (const currentTab of ["SG", "G1", "G2"] as Tab[]) {
-        for (const s of evaluatedByTab[currentTab]) {
-          if (s.status !== "green" && s.status !== "red") continue;
-          const existing = entries.find(
-            (e) => e.timeMs === s.timeMs && e.tab === currentTab,
-          );
-          if (!existing) {
-            entries.push({ timeMs: s.timeMs, tab: currentTab, status: s.status });
-            changed = true;
-          } else if (existing.status !== s.status) {
-            existing.status = s.status;
-            changed = true;
-          }
-        }
-      }
-      if (!changed) return prev;
-      const updated = { dayKey: today, entries };
-      try {
-        window.localStorage.setItem(SCORE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
-  }, [evaluatedByTab, hydrated, nowMs, scoreLoaded]);
-
-  const dayEntries = scoreStore.entries.filter((e) => e.tab === tab);
-  const greens = dayEntries.filter((e) => e.status === "green").length;
-  const reds = dayEntries.filter((e) => e.status === "red").length;
-  const resolved = greens + reds;
-  const accuracy = resolved ? Math.round((greens / resolved) * 100) : 0;
-
+  const [tab, setTab] = useState<FluxoTab>("SG");
   const [copied, setCopied] = useState(false);
+
+  const dayState = useMemo(() => getFluxoCoresDayState(stones, nowMs), [stones, nowMs]);
+  const evaluated = dayState.byTab[tab].currentEvaluated;
+  const greens = dayState.byTab[tab].wins;
+  const reds = dayState.byTab[tab].losses;
+  const accuracy = dayState.byTab[tab].accuracy;
 
   function handleCopy() {
     const header = `Fluxo Jon Cores — ${tab}`;
@@ -374,7 +68,6 @@ export default function FluxoCores({
         </button>
       </div>
 
-      {/* Placar do dia (acumulado em todas as listas) */}
       <div className="mb-2 grid grid-cols-3 gap-1.5">
         <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1.5 text-center">
           <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300">Wins</div>
@@ -391,7 +84,7 @@ export default function FluxoCores({
       </div>
 
       <div className="flex gap-1 mb-2">
-        {(["SG", "G1", "G2"] as Tab[]).map((t) => (
+        {(["SG", "G1", "G2"] as FluxoTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -436,10 +129,7 @@ export default function FluxoCores({
                 <StoneIcon color={s.predicted} />
                 <StoneIcon color={0} />
               </div>
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${dotColor}`}
-                aria-label={s.status}
-              />
+              <span className={`h-2.5 w-2.5 rounded-full ${dotColor}`} aria-label={s.status} />
             </div>
           );
         })}
