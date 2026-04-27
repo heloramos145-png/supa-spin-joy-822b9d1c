@@ -1,27 +1,29 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
 import {
-  getBrancosTierStateFromPrepared,
-  getBrancosTierState,
   getBrancosDayState,
   type BaseStone,
   type WhiteTierKey,
+  type WhiteSignalStatus,
 } from "@/lib/fluxoJon";
 
 export type BrancoStone = BaseStone;
 
-type Tier = {
-  key: WhiteTierKey;
-  label: string;
-  color: string;
+const TIER_ORDER: WhiteTierKey[] = ["100", "300", "500", "1000"];
+const TIER_BADGE: Record<WhiteTierKey, string> = {
+  "100": "text-emerald-300 border-emerald-400/40 bg-emerald-500/10",
+  "300": "text-sky-300 border-sky-400/40 bg-sky-500/10",
+  "500": "text-amber-300 border-amber-400/40 bg-amber-500/10",
+  "1000": "text-fuchsia-300 border-fuchsia-400/40 bg-fuchsia-500/10",
 };
 
-const TIERS: Tier[] = [
-  { key: "100", label: "$ 100", color: "text-emerald-300 border-emerald-400/40" },
-  { key: "300", label: "$ 300", color: "text-sky-300 border-sky-400/40" },
-  { key: "500", label: "$ 500", color: "text-amber-300 border-amber-400/40" },
-  { key: "1000", label: "$ 1000", color: "text-fuchsia-300 border-fuchsia-400/40" },
-];
+type Row = {
+  key: string;
+  timeMs: number;
+  label: string;
+  tier: WhiteTierKey;
+  status: WhiteSignalStatus;
+};
 
 export default function BrancosFluxoJon({
   stones,
@@ -32,14 +34,38 @@ export default function BrancosFluxoJon({
   nowMs: number;
   dayState?: ReturnType<typeof getBrancosDayState>;
 }) {
-  const [tab, setTab] = useState<WhiteTierKey>("100");
-  const tierState = useMemo(
-    () => (dayState ? getBrancosTierStateFromPrepared(dayState.byTier, tab) : getBrancosTierState(stones, nowMs, tab)),
-    [dayState, stones, nowMs, tab],
+  const state = useMemo(
+    () => dayState ?? getBrancosDayState(stones, nowMs),
+    [dayState, stones, nowMs],
   );
-  const evaluated = tierState.currentEvaluated;
-  const wins = tierState.wins;
-  const losses = tierState.losses;
+
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    for (const tier of TIER_ORDER) {
+      for (const sig of state.byTier[tier].currentEvaluated) {
+        out.push({
+          key: `${tier}-${sig.timeMs}`,
+          timeMs: sig.timeMs,
+          label: sig.label,
+          tier,
+          status: sig.status,
+        });
+      }
+    }
+    // mais recente primeiro
+    return out.sort((a, b) => b.timeMs - a.timeMs);
+  }, [state]);
+
+  const wins = useMemo(
+    () =>
+      TIER_ORDER.reduce((acc, t) => acc + state.byTier[t].wins, 0),
+    [state],
+  );
+  const losses = useMemo(
+    () =>
+      TIER_ORDER.reduce((acc, t) => acc + state.byTier[t].losses, 0),
+    [state],
+  );
 
   return (
     <div className="rounded-md border border-white/30 bg-slate-900/60 p-2">
@@ -59,27 +85,11 @@ export default function BrancosFluxoJon({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 mb-2">
-        {TIERS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-md px-1 py-1 text-[10px] font-bold transition border ${
-              tab === t.key
-                ? "bg-white text-slate-950 border-white"
-                : `bg-slate-800 text-slate-300 hover:bg-slate-700 ${t.color}`
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="space-y-1">
-        {evaluated.length === 0 && (
+      <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
+        {rows.length === 0 && (
           <div className="text-[11px] text-slate-500 text-center py-3">Sem sinais ainda.</div>
         )}
-        {evaluated.map((s) => {
+        {rows.map((s) => {
           const bg =
             s.status === "win-latado"
               ? "bg-emerald-500/20 border-emerald-400/60"
@@ -110,15 +120,20 @@ export default function BrancosFluxoJon({
                   : "text-amber-300";
           return (
             <div
-              key={s.timeMs}
+              key={s.key}
               className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${bg}`}
             >
-              <div className="flex items-center gap-2">
-                <div className="h-5 w-5 rounded-md bg-white ring-1 ring-emerald-600 flex items-center justify-center overflow-hidden">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="h-5 w-5 rounded-md bg-white ring-1 ring-emerald-600 flex items-center justify-center overflow-hidden flex-shrink-0">
                   <img src={brancoIcon} alt="" className="h-4 w-4 object-contain" />
                 </div>
                 <span className="font-mono text-[12px] font-bold text-slate-100 tabular-nums">
                   {s.label}
+                </span>
+                <span
+                  className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${TIER_BADGE[s.tier]}`}
+                >
+                  ${s.tier}
                 </span>
               </div>
               <span className={`text-[10px] font-extrabold ${tagColor}`}>{tag}</span>
