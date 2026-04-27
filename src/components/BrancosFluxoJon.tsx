@@ -40,20 +40,31 @@ export default function BrancosFluxoJon({
   );
 
   const rows = useMemo<Row[]>(() => {
-    const out: Row[] = [];
-    for (const tier of TIER_ORDER) {
+    // tier de maior valor primeiro para vencer empates de horário
+    const TIER_PRIORITY: WhiteTierKey[] = ["1000", "500", "300", "100"];
+    const TIER_VALUE: Record<WhiteTierKey, number> = {
+      "100": 100,
+      "300": 300,
+      "500": 500,
+      "1000": 1000,
+    };
+    const byTime = new Map<number, Row>();
+    for (const tier of TIER_PRIORITY) {
       for (const sig of state.byTier[tier].currentEvaluated) {
-        out.push({
-          key: `${tier}-${sig.timeMs}`,
-          timeMs: sig.timeMs,
-          label: sig.label,
-          tier,
-          status: sig.status,
-        });
+        const existing = byTime.get(sig.timeMs);
+        if (!existing || TIER_VALUE[tier] > TIER_VALUE[existing.tier]) {
+          byTime.set(sig.timeMs, {
+            key: `${sig.timeMs}`,
+            timeMs: sig.timeMs,
+            label: sig.label,
+            tier,
+            status: sig.status,
+          });
+        }
       }
     }
     // mais recente primeiro
-    return out.sort((a, b) => b.timeMs - a.timeMs);
+    return Array.from(byTime.values()).sort((a, b) => b.timeMs - a.timeMs);
   }, [state]);
 
   const wins = useMemo(
