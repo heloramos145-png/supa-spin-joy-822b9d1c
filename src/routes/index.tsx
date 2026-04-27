@@ -650,6 +650,7 @@ function Index() {
           </p>
         )}
       </main>
+      <DrawingOverlay />
     </div>
   );
 }
