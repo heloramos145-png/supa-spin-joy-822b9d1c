@@ -43,6 +43,11 @@ function brasiliaMinute(ms: number): number {
   return b.getUTCMinutes();
 }
 
+function brasiliaDayKey(ms: number): string {
+  const d = new Date(ms - 3 * 60 * 60 * 1000);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+}
+
 function buildSignals(startMs: number): Signal[] {
   const signals: Signal[] = [];
   // alinha startMs no início do minuto
@@ -61,6 +66,14 @@ function buildSignals(startMs: number): Signal[] {
 }
 
 type SignalResult = "pending" | "green" | "red" | "waiting";
+
+type SignalStore = {
+  dayKey: string;
+  signals: Signal[];
+};
+
+type ScoreEntry = { timeMs: number; tab: Tab; status: "green" | "red" };
+type ScoreStore = { dayKey: string; entries: ScoreEntry[] };
 
 function evaluate(
   sig: Signal,
@@ -158,15 +171,30 @@ export default function FluxoCores({
   // com SSR (servidor devolve [] e o cliente reusa esse [] do HTML).
   const [signals, setSignals] = useState<Signal[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [scoreLoaded, setScoreLoaded] = useState(false);
 
   // Hidrata do localStorage uma única vez no cliente
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Signal[];
+        const parsed = JSON.parse(raw) as Signal[] | SignalStore;
         if (Array.isArray(parsed) && parsed.length === SIGNALS_COUNT) {
-          setSignals(parsed);
+          const inferredDayKey = parsed[0]
+            ? brasiliaDayKey(parsed[0].timeMs)
+            : brasiliaDayKey(Date.now());
+          if (inferredDayKey === brasiliaDayKey(Date.now())) {
+            setSignals(parsed);
+          }
+        } else if (
+          parsed &&
+          typeof parsed === "object" &&
+          "signals" in parsed &&
+          Array.isArray(parsed.signals) &&
+          parsed.dayKey === brasiliaDayKey(Date.now()) &&
+          parsed.signals.length === SIGNALS_COUNT
+        ) {
+          setSignals(parsed.signals);
         }
       }
     } catch {
@@ -178,11 +206,28 @@ export default function FluxoCores({
   useEffect(() => {
     if (!nowMs || !hydrated) return;
     setSignals((prev) => {
+      const today = brasiliaDayKey(nowMs);
       // Primeira geração (só depois de hidratado, pra não sobrescrever storage)
       if (prev.length === 0) {
         const next = buildSignals(nowMs);
         try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ dayKey: today, signals: next } satisfies SignalStore),
+          );
+        } catch {
+          // ignore
+        }
+        return next;
+      }
+      // Virou o dia em Brasília → reinicia a lista do dia.
+      if (brasiliaDayKey(prev[0].timeMs) !== today) {
+        const next = buildSignals(nowMs);
+        try {
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ dayKey: today, signals: next } satisfies SignalStore),
+          );
         } catch {
           // ignore
         }
@@ -193,7 +238,10 @@ export default function FluxoCores({
       if (allDone) {
         const next = buildSignals(prev[prev.length - 1].timeMs);
         try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          window.localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ dayKey: today, signals: next } satisfies SignalStore),
+          );
         } catch {
           // ignore
         }
@@ -212,18 +260,20 @@ export default function FluxoCores({
     [signals, tab, stones, nowMs],
   );
 
+  const evaluatedByTab = useMemo(
+    () => ({
+      SG: signals.map((s) => ({ ...s, status: evaluate(s, "SG", stones, nowMs) })),
+      G1: signals.map((s) => ({ ...s, status: evaluate(s, "G1", stones, nowMs) })),
+      G2: signals.map((s) => ({ ...s, status: evaluate(s, "G2", stones, nowMs) })),
+    }),
+    [signals, stones, nowMs],
+  );
+
   // ===== Placar acumulado do DIA (por aba) =====
   // Cada vez que um sinal fica "green" ou "red", grava no storage do dia.
   // Placar = soma de todos os sinais resolvidos do dia, mesmo de listas
   // anteriores que já foram regeneradas.
   const SCORE_KEY = "fluxo-cores:score:v2";
-  type ScoreEntry = { timeMs: number; tab: Tab; status: "green" | "red" };
-  type ScoreStore = { dayKey: string; entries: ScoreEntry[] };
-
-  function brasiliaDayKey(ms: number): string {
-    const d = new Date(ms - 3 * 60 * 60 * 1000);
-    return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
-  }
 
   const [scoreStore, setScoreStore] = useState<ScoreStore>({ dayKey: "", entries: [] });
 
@@ -231,14 +281,26 @@ export default function FluxoCores({
     if (!hydrated) return;
     try {
       const raw = window.localStorage.getItem(SCORE_KEY);
-      if (raw) setScoreStore(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw) as ScoreStore;
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          Array.isArray(parsed.entries) &&
+          typeof parsed.dayKey === "string"
+        ) {
+          setScoreStore(parsed);
+        }
+      }
     } catch {
       // ignore
+    } finally {
+      setScoreLoaded(true);
     }
   }, [hydrated]);
 
   useEffect(() => {
-    if (!hydrated || !nowMs) return;
+    if (!hydrated || !scoreLoaded || !nowMs) return;
     const today = brasiliaDayKey(nowMs);
     setScoreStore((prev) => {
       let next = prev;
@@ -248,17 +310,19 @@ export default function FluxoCores({
       }
       let changed = next !== prev;
       const entries = [...next.entries];
-      for (const s of evaluated) {
-        if (s.status !== "green" && s.status !== "red") continue;
-        const existing = entries.find(
-          (e) => e.timeMs === s.timeMs && e.tab === tab,
-        );
-        if (!existing) {
-          entries.push({ timeMs: s.timeMs, tab, status: s.status });
-          changed = true;
-        } else if (existing.status !== s.status) {
-          existing.status = s.status;
-          changed = true;
+      for (const currentTab of ["SG", "G1", "G2"] as Tab[]) {
+        for (const s of evaluatedByTab[currentTab]) {
+          if (s.status !== "green" && s.status !== "red") continue;
+          const existing = entries.find(
+            (e) => e.timeMs === s.timeMs && e.tab === currentTab,
+          );
+          if (!existing) {
+            entries.push({ timeMs: s.timeMs, tab: currentTab, status: s.status });
+            changed = true;
+          } else if (existing.status !== s.status) {
+            existing.status = s.status;
+            changed = true;
+          }
         }
       }
       if (!changed) return prev;
@@ -270,7 +334,7 @@ export default function FluxoCores({
       }
       return updated;
     });
-  }, [evaluated, hydrated, nowMs, tab]);
+  }, [evaluatedByTab, hydrated, nowMs, scoreLoaded]);
 
   const dayEntries = scoreStore.entries.filter((e) => e.tab === tab);
   const greens = dayEntries.filter((e) => e.status === "green").length;
