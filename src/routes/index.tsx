@@ -419,37 +419,7 @@ function Index() {
           </div>
         )}
 
-        {/* Relógio de Brasília — compacto, acima do gráfico */}
-        <div className="flex items-center justify-between rounded-md border border-slate-800 bg-slate-900/60 px-3 py-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-wider text-slate-300">
-              Horário de Brasília
-            </span>
-          </div>
-          <div className="font-mono text-[14px] font-bold tabular-nums text-emerald-400 sm:text-base">
-            {clockTime}
-          </div>
-          <div className="hidden text-[10px] text-slate-400 sm:block">
-            {clockDate}
-          </div>
-        </div>
-
-        {/* Badge: última pedra recebida (debug visível) */}
-        {latestResult && (
-          <div className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs">
-            <span className="text-emerald-300">Última pedra recebida</span>
-            <span className="font-mono font-bold text-emerald-200">
-              {new Date(latestResult.created_at).toLocaleTimeString("pt-BR", {
-                timeZone: "America/Sao_Paulo",
-              })}{" "}
-              • roll {latestResult.roll}
-            </span>
-          </div>
-        )}
+        {/* Relógio e badge da última pedra movidos para dentro do histórico */}
 
         {/* Histórico — 10 colunas fixas (00..09), 2 pedras por minuto, mín 6 linhas */}
         {(() => {
