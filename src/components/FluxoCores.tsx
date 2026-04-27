@@ -212,8 +212,69 @@ export default function FluxoCores({
     [signals, tab, stones, nowMs],
   );
 
-  const greens = evaluated.filter((s) => s.status === "green").length;
-  const reds = evaluated.filter((s) => s.status === "red").length;
+  // ===== Placar acumulado do DIA (por aba) =====
+  // Cada vez que um sinal fica "green" ou "red", grava no storage do dia.
+  // Placar = soma de todos os sinais resolvidos do dia, mesmo de listas
+  // anteriores que já foram regeneradas.
+  const SCORE_KEY = "fluxo-cores:score:v2";
+  type ScoreEntry = { timeMs: number; tab: Tab; status: "green" | "red" };
+  type ScoreStore = { dayKey: string; entries: ScoreEntry[] };
+
+  function brasiliaDayKey(ms: number): string {
+    const d = new Date(ms - 3 * 60 * 60 * 1000);
+    return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+  }
+
+  const [scoreStore, setScoreStore] = useState<ScoreStore>({ dayKey: "", entries: [] });
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      const raw = window.localStorage.getItem(SCORE_KEY);
+      if (raw) setScoreStore(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, [hydrated]);
+
+  useEffect(() => {
+    if (!hydrated || !nowMs) return;
+    const today = brasiliaDayKey(nowMs);
+    setScoreStore((prev) => {
+      let next = prev;
+      // virou o dia → zera
+      if (prev.dayKey !== today) {
+        next = { dayKey: today, entries: [] };
+      }
+      let changed = next !== prev;
+      const entries = [...next.entries];
+      for (const s of evaluated) {
+        if (s.status !== "green" && s.status !== "red") continue;
+        const existing = entries.find(
+          (e) => e.timeMs === s.timeMs && e.tab === tab,
+        );
+        if (!existing) {
+          entries.push({ timeMs: s.timeMs, tab, status: s.status });
+          changed = true;
+        } else if (existing.status !== s.status) {
+          existing.status = s.status;
+          changed = true;
+        }
+      }
+      if (!changed) return prev;
+      const updated = { dayKey: today, entries };
+      try {
+        window.localStorage.setItem(SCORE_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  }, [evaluated, hydrated, nowMs, tab]);
+
+  const dayEntries = scoreStore.entries.filter((e) => e.tab === tab);
+  const greens = dayEntries.filter((e) => e.status === "green").length;
+  const reds = dayEntries.filter((e) => e.status === "red").length;
   const resolved = greens + reds;
   const accuracy = resolved ? Math.round((greens / resolved) * 100) : 0;
 
@@ -241,20 +302,27 @@ export default function FluxoCores({
         <div className="text-xs font-bold uppercase tracking-wider text-emerald-300">
           Fluxo Jon Cores
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-[10px] text-slate-400 tabular-nums">
-            <span className="text-emerald-400">{greens}</span>
-            {" / "}
-            <span className="text-rose-400">{reds}</span>
-            {" • "}
-            {accuracy}%
-          </div>
-          <button
-            onClick={handleCopy}
-            className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-200 hover:bg-slate-700 transition"
-          >
-            {copied ? "Copiado!" : "Copiar lista"}
-          </button>
+        <button
+          onClick={handleCopy}
+          className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-200 hover:bg-slate-700 transition"
+        >
+          {copied ? "Copiado!" : "Copiar lista"}
+        </button>
+      </div>
+
+      {/* Placar do dia (acumulado em todas as listas) */}
+      <div className="mb-2 grid grid-cols-3 gap-1.5">
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2 py-1.5 text-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-emerald-300">Wins</div>
+          <div className="text-lg font-extrabold tabular-nums text-emerald-300 leading-none">{greens}</div>
+        </div>
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/15 px-2 py-1.5 text-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-rose-300">Loss</div>
+          <div className="text-lg font-extrabold tabular-nums text-rose-300 leading-none">{reds}</div>
+        </div>
+        <div className="rounded-md border border-sky-500/40 bg-sky-500/15 px-2 py-1.5 text-center">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-sky-300">Acerto</div>
+          <div className="text-lg font-extrabold tabular-nums text-sky-300 leading-none">{accuracy}%</div>
         </div>
       </div>
 
