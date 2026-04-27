@@ -189,23 +189,38 @@ function Index() {
 
   async function fetchResults() {
     const sinceISO = startOfBrasiliaDayISO();
-    const { data, error } = await supabase
-      .from("double_results")
-      .select("*")
-      .gte("created_at", sinceISO)
-      .order("created_at", { ascending: true })
-      .range(0, 4000);
-    if (error) {
-      setLoading(false);
-      setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
-      return;
+    const pageSize = 1000;
+    const allRows: RawDoubleRow[] = [];
+
+    for (let page = 0; page < 10; page++) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error } = await supabase
+        .from("double_results")
+        .select("*")
+        .gte("created_at", sinceISO)
+        .order("created_at", { ascending: true })
+        .range(from, to);
+
+      if (error) {
+        setLoading(false);
+        setSyncState((s) => ({ ...s, lastError: error.message, status: "error" }));
+        return;
+      }
+
+      const batch = (data ?? []) as RawDoubleRow[];
+      allRows.push(...batch);
+
+      if (batch.length < pageSize) break;
     }
-    const nextResults = dedupeResultsByMinute(((data ?? []) as RawDoubleRow[])
+
+    const nextResults = dedupeResultsByMinute(allRows
       .map(normalizeRow)
       .filter((row): row is DoubleRow => row !== null)
       .sort(compareByCreatedAtAsc));
     setResults(nextResults);
     setLoading(false);
+    setSyncState((s) => ({ ...s, lastError: null, status: "ok" }));
   }
 
   // Sync da Jonbet roda no servidor (cron pg_cron / Vercel cron),
