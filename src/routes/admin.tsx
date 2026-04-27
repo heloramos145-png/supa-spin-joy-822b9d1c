@@ -45,9 +45,10 @@ function AdminPage() {
   const [maxUses, setMaxUses] = useState(1);
   const [note, setNote] = useState("");
 
-  function refresh() {
-    setCodes(listCodes());
-    setUsers(listUsers());
+  async function refresh() {
+    const [c, u] = await Promise.all([listCodes(), listUsers()]);
+    setCodes(c);
+    setUsers(u);
   }
 
   useEffect(() => {
@@ -60,15 +61,14 @@ function AdminPage() {
       navigate({ to: "/" });
       return;
     }
-    refresh();
-    setReady(true);
+    refresh().then(() => setReady(true));
   }, [navigate]);
 
   if (!ready) return null;
 
-  function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    createCode({
+    await createCode({
       code: customCode || undefined,
       daysValid: days,
       maxUses,
@@ -76,7 +76,7 @@ function AdminPage() {
     });
     setCustomCode("");
     setNote("");
-    refresh();
+    await refresh();
   }
 
   function logout() {
@@ -235,9 +235,9 @@ function AdminPage() {
                         </span>
                         {revoked ? (
                           <button
-                            onClick={() => {
-                              unrevokeCode(c.code);
-                              refresh();
+                            onClick={async () => {
+                              await unrevokeCode(c.code);
+                              await refresh();
                             }}
                             className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300 hover:bg-emerald-500/30"
                           >
@@ -245,10 +245,10 @@ function AdminPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (confirm(`Revogar código ${c.code}? Quem usou ele perde acesso.`)) {
-                                revokeCode(c.code);
-                                refresh();
+                                await revokeCode(c.code);
+                                await refresh();
                               }
                             }}
                             className="rounded bg-amber-500/20 px-2 py-0.5 text-amber-300 hover:bg-amber-500/30"
@@ -257,10 +257,10 @@ function AdminPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Apagar código ${c.code}?`)) {
-                              deleteCode(c.code);
-                              refresh();
+                              await deleteCode(c.code);
+                              await refresh();
                             }
                           }}
                           className="rounded bg-rose-500/20 px-2 py-0.5 text-rose-300 hover:bg-rose-500/30"
@@ -317,10 +317,10 @@ function AdminPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm(`Remover usuário ${u.email}?`)) {
-                          deleteUser(u.email);
-                          refresh();
+                          await deleteUser(u.email);
+                          await refresh();
                         }
                       }}
                       className="rounded bg-rose-500/20 px-2 py-1 text-[10px] font-bold text-rose-300 hover:bg-rose-500/30"

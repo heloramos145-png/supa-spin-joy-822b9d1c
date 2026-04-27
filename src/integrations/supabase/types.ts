@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activation_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          max_uses: number
+          note: string | null
+          revoked: boolean
+          used_by: string[]
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          max_uses?: number
+          note?: string | null
+          revoked?: boolean
+          used_by?: string[]
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          max_uses?: number
+          note?: string | null
+          revoked?: boolean
+          used_by?: string[]
+        }
+        Relationships: []
+      }
+      app_users: {
+        Row: {
+          code_expires_at: string
+          code_used: string
+          email: string
+          password_hash: string
+          registered_at: string
+        }
+        Insert: {
+          code_expires_at: string
+          code_used: string
+          email: string
+          password_hash: string
+          registered_at?: string
+        }
+        Update: {
+          code_expires_at?: string
+          code_used?: string
+          email?: string
+          password_hash?: string
+          registered_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

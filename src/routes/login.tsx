@@ -26,11 +26,11 @@ function LoginPage() {
     }
   }, [navigate]);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = login(email, password, code);
+    const res = await login(email, password, code);
     setLoading(false);
     if (!res.ok) {
       setError(res.error);
