@@ -229,6 +229,22 @@ export function deleteCode(code: string) {
   );
 }
 
+export function revokeCode(code: string) {
+  const codes = read<ActivationCode[]>(CODES_KEY, []);
+  write(
+    CODES_KEY,
+    codes.map((c) => (c.code === code ? { ...c, revoked: true } : c)),
+  );
+}
+
+export function unrevokeCode(code: string) {
+  const codes = read<ActivationCode[]>(CODES_KEY, []);
+  write(
+    CODES_KEY,
+    codes.map((c) => (c.code === code ? { ...c, revoked: false } : c)),
+  );
+}
+
 export function listUsers(): RegisteredUser[] {
   return read<RegisteredUser[]>(USERS_KEY, []).sort(
     (a, b) => b.registeredAt - a.registeredAt,
