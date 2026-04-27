@@ -1,12 +1,8 @@
 import { useMemo } from "react";
 import brancoIcon from "@/assets/branco-icon.png";
+import { getBrancosDayState, startOfBrasiliaDayMs, type BaseStone } from "@/lib/fluxoJon";
 
-export type CorrecaoStone = {
-  id: string | number;
-  roll: number;
-  color: number;
-  created_at: string;
-};
+export type CorrecaoStone = BaseStone;
 
 function fmtHM(ms: number): string {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -17,82 +13,6 @@ function fmtHM(ms: number): string {
   }).format(new Date(ms));
 }
 
-function brasiliaDayKey(ms: number): string {
-  const d = new Date(ms - 3 * 60 * 60 * 1000);
-  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
-}
-
-type StoredSignals = Record<
-  "100" | "300" | "500" | "1000",
-  { timeMs: number; label: string }[]
->;
-
-const STORAGE_KEY = "brancos-fluxo-jon:signals:v1";
-const HISTORY_KEY = "brancos-fluxo-jon:history:v1";
-
-type HistoryEntry = {
-  tier: "100" | "300" | "500" | "1000";
-  timeMs: number;
-};
-
-type SignalsStore = {
-  dayKey: string;
-  signals: StoredSignals;
-};
-
-type HistoryStore = {
-  dayKey: string;
-  entries: HistoryEntry[];
-};
-
-function readSignals(): StoredSignals {
-  if (typeof window === "undefined")
-    return { "100": [], "300": [], "500": [], "1000": [] };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { "100": [], "300": [], "500": [], "1000": [] };
-    const parsed = JSON.parse(raw) as StoredSignals | SignalsStore;
-    const signals =
-      parsed && typeof parsed === "object" && "signals" in parsed
-        ? parsed.dayKey === brasiliaDayKey(Date.now())
-          ? parsed.signals
-          : { "100": [], "300": [], "500": [], "1000": [] }
-        : (parsed as StoredSignals);
-    return {
-      "100": signals["100"] ?? [],
-      "300": signals["300"] ?? [],
-      "500": signals["500"] ?? [],
-      "1000": signals["1000"] ?? [],
-    };
-  } catch {
-    return { "100": [], "300": [], "500": [], "1000": [] };
-  }
-}
-
-function readHistory(): HistoryEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as HistoryEntry[] | HistoryStore;
-    if (Array.isArray(parsed)) return parsed;
-    return parsed.dayKey === brasiliaDayKey(Date.now()) ? parsed.entries : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeHistory(entries: HistoryEntry[]) {
-  try {
-    window.localStorage.setItem(
-      HISTORY_KEY,
-      JSON.stringify({ dayKey: brasiliaDayKey(Date.now()), entries } satisfies HistoryStore),
-    );
-  } catch {
-    // ignore
-  }
-}
-
 export default function CorrecaoBrancos({
   stones,
   nowMs,
@@ -100,34 +20,9 @@ export default function CorrecaoBrancos({
   stones: CorrecaoStone[];
   nowMs: number;
 }) {
-  // início do dia em Brasília (00:00)
-  const todayStartMs = useMemo(() => {
-    const ref = nowMs || Date.now();
-    const d = new Date(ref - 3 * 60 * 60 * 1000);
-    const start = new Date(
-      Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 3, 0, 0),
-    );
-    return start.getTime();
-  }, [nowMs]);
+  const todayStartMs = useMemo(() => startOfBrasiliaDayMs(nowMs || Date.now()), [nowMs]);
+  const brancosState = useMemo(() => getBrancosDayState(stones, nowMs), [stones, nowMs]);
 
-  // Sinais ativos + histórico, filtrados pro dia
-  const allSignals = useMemo(() => {
-    const active = readSignals();
-    const history = readHistory();
-    const merged: HistoryEntry[] = [...history];
-    (Object.keys(active) as (keyof StoredSignals)[]).forEach((tier) => {
-      for (const s of active[tier]) {
-        if (!merged.some((h) => h.tier === tier && h.timeMs === s.timeMs)) {
-          merged.push({ tier, timeMs: s.timeMs });
-        }
-      }
-    });
-    const filtered = merged.filter((h) => h.timeMs >= todayStartMs);
-    writeHistory(filtered);
-    return filtered;
-  }, [nowMs, todayStartMs]);
-
-  // TODOS os brancos do dia (a partir das 00:00 Brasília)
   const whitesToday = useMemo(() => {
     if (!nowMs) return [];
     return stones
@@ -135,8 +30,7 @@ export default function CorrecaoBrancos({
       .filter((s) => new Date(s.created_at).getTime() >= todayStartMs)
       .sort(
         (a, b) =>
-          new Date(b.created_at).getTime() -
-          new Date(a.created_at).getTime(),
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
   }, [stones, nowMs, todayStartMs]);
 
@@ -147,36 +41,42 @@ export default function CorrecaoBrancos({
     type: "LATADO" | "MARGEM";
   };
 
-  // Só lista brancos do dia que BATERAM em algum sinal (LATADO ou MARGEM).
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
+    const allSignals = brancosState.allHistory;
+
     for (const w of whitesToday) {
       const wMs = new Date(w.created_at).getTime();
-      let best: { entry: HistoryEntry; type: "LATADO" | "MARGEM" } | null = null;
+      let best:
+        | { tier: "100" | "300" | "500" | "1000"; type: "LATADO" | "MARGEM" }
+        | null = null;
+
       for (const sig of allSignals) {
         const minStart = sig.timeMs;
         const minEnd = sig.timeMs + 60000;
         const prevStart = sig.timeMs - 60000;
         const nextEnd = sig.timeMs + 120000;
+
         if (wMs >= prevStart && wMs < nextEnd) {
-          const inExact = wMs >= minStart && wMs < minEnd;
-          const type: "LATADO" | "MARGEM" = inExact ? "LATADO" : "MARGEM";
+          const type: "LATADO" | "MARGEM" = wMs >= minStart && wMs < minEnd ? "LATADO" : "MARGEM";
           if (!best || (type === "LATADO" && best.type !== "LATADO")) {
-            best = { entry: sig, type };
+            best = { tier: sig.tier, type };
           }
         }
       }
+
       if (best) {
         out.push({
           stoneId: w.id,
           whiteMs: wMs,
-          tier: best.entry.tier,
+          tier: best.tier,
           type: best.type,
         });
       }
     }
+
     return out.sort((a, b) => b.whiteMs - a.whiteMs);
-  }, [whitesToday, allSignals]);
+  }, [whitesToday, brancosState.allHistory]);
 
   return (
     <div className="rounded-md border border-emerald-500/30 bg-slate-900/60 p-2">
@@ -209,27 +109,19 @@ export default function CorrecaoBrancos({
               h.type === "LATADO" ? "text-emerald-200" : "text-emerald-300";
             return (
               <div
-                key={`${h.stoneId}`}
+                key={`${h.stoneId}-${h.tier}-${h.type}`}
                 className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${bg}`}
               >
                 <div className="flex items-center gap-2">
                   <div className="h-5 w-5 rounded-md bg-white ring-1 ring-emerald-600 flex items-center justify-center overflow-hidden">
-                    <img
-                      src={brancoIcon}
-                      alt=""
-                      className="h-4 w-4 object-contain"
-                    />
+                    <img src={brancoIcon} alt="" className="h-4 w-4 object-contain" />
                   </div>
                   <span className="font-mono text-[12px] font-bold text-slate-100 tabular-nums">
                     {fmtHM(h.whiteMs)}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-400">
-                    ${h.tier}
-                  </span>
+                  <span className="text-[9px] font-bold text-slate-400">${h.tier}</span>
                 </div>
-                <span className={`text-[10px] font-extrabold ${tagColor}`}>
-                  WIN {h.type}
-                </span>
+                <span className={`text-[10px] font-extrabold ${tagColor}`}>WIN {h.type}</span>
               </div>
             );
           })
