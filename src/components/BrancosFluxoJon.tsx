@@ -305,11 +305,7 @@ export default function BrancosFluxoJon({
         ))}
       </div>
 
-      {forecast && (
-        <div className="mb-2 text-[10px] text-slate-400 italic">
-          {forecast.baseInfo}
-        </div>
-      )}
+      {/* baseInfo da estratégia oculto a pedido do usuário */}
 
       <div className="space-y-1">
         {evaluated.length === 0 && (
