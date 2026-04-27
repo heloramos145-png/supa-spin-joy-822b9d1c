@@ -102,12 +102,14 @@ function AdminPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to="/"
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-md border border-emerald-500/40 bg-slate-900 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-slate-800"
             >
               Ver site
-            </Link>
+            </a>
             <button
               onClick={logout}
               className="rounded-md bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-500/30 border border-rose-500/40"
