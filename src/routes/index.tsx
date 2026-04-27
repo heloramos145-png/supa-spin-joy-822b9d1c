@@ -401,22 +401,7 @@ function Index() {
           countdown={nextRoundIn}
         />
 
-        {/* Pedra antecipada via WebSocket — só aparece com aba aberta */}
-        {livePreview && livePreview.status === "rolling" && (
-          <div className="flex items-center justify-between rounded-md border border-amber-400/50 bg-amber-400/10 px-3 py-2 text-sm animate-pulse">
-            <span className="font-bold uppercase tracking-wide text-amber-300">
-              ⚡ Antecipada
-            </span>
-            <span className="font-mono text-base font-extrabold text-amber-200">
-              {livePreview.roll} •{" "}
-              {livePreview.color === 0
-                ? "BRANCO"
-                : livePreview.color === 1
-                ? "VERDE"
-                : "PRETO"}
-            </span>
-          </div>
-        )}
+        {/* Pedra antecipada removida a pedido do usuário */}
 
         {/* Relógio e badge da última pedra movidos para dentro do histórico */}
 
